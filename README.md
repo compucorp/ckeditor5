@@ -11,10 +11,15 @@ no data.
 Currently the packaged version is useful for sites operating behind
 a firewall as it embeds any uploaded images into the html
 (as a base64 blob), meaning that images embedded in emails will
-not be inaccessible to the recipients.
+not be inaccessible to the recipients. For example a user who is sending
+an email from CiviCRM from behind a firewall who wants to add a signature
+cannot use the traditional ckeditor4 image insert because the image  will
+be located behind the firewall and inaccessible to the reader. By embedding it
+it will be available.
 
-I also hope to support elfinder integration as an alternative inn future
-https://github.com/Studio-42/elFinder#downloads
+Note - there are discrepancies between email clients and some
+might suppress or mis-display embedded images, as some might suppress linked ones.
+I also hope to support [elfinder](https://github.com/Studio-42/elFinder#downloads) integration as an alternative inn future
 
 The extension is licensed under [AGPL-3.0](LICENSE.txt).
 
