@@ -68,7 +68,16 @@ technical discussion below.
 - An interesting feature of ckeditor5 is that you can do more Gutenberg-like edit in place.
 This would make sense possibly on a contribution page. No current plans.
 
-##  File mannager
+## A word about builds
+
+ckeditor has a concept of builds constructed with npm. To change some components
+(e.g include base64 uploader) it is necessary to used a build. These can be generated
+using the [online builder](https://ckeditor.com/ckeditor-5/online-builder/). Alternatively
+the classic editor [can be downloaded & installed](https://ckeditor.com/ckeditor-5/download/).
+In the latter case there is no build or src directory or additional files.  So far I have just
+downloaded & committed these as they come from the above links.
+
+##  File manager
 
 An ongoing challenge with ckeditor4 as implemented with CiviCRM is that the filemanager  (kcfinder)
 is pretty hard to work with and requires some hacks to be able to figure out paths.
