@@ -340,6 +340,7 @@
               '|',
               'link',
               'imageUpload',
+              'ckfinder',
               'blockQuote',
               'insertTable',
               'alignment',
