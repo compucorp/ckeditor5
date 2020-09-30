@@ -279,7 +279,7 @@
               'horizontalLine'
             ]
           },
-          language: 'en',
+          language: (typeof CRM.config.locale == 'string' ? CRM.config.locale.substr(0,2) : 'en'),
           image: {
             toolbar: [
               'imageTextAlternative',
@@ -307,7 +307,69 @@
      */
     function initializeWithELFinder() {
       $(item).addClass('crm-wysiwyg-enabled');
-      ClassicEditor.create($(item)[0]).then(onReadyElFinder);
+      ClassicEditor.create($(item)[0], {
+          toolbar: {
+            // With this it wraps rather than offering a drop down for more.
+            // I'm on the fence about which is better but this is consistent with
+            // ckeditor4. If we added configurability we could expose this.
+            // https://ckeditor.com/docs/ckeditor5/latest/api/module_core_editor_editorconfig-EditorConfig.html#member-toolbar
+            shouldNotGroupWhenFull: true,
+            items: [
+              'heading',
+              '|',
+              'bold',
+              'underline',
+              'italic',
+              'strikethrough',
+              'superscript',
+              'subscript',
+              'highlight',
+              '|',
+              'removeFormat',
+              'specialCharacters',
+              'fontFamily',
+              'fontColor',
+              'fontBackgroundColor',
+              'fontSize',
+              '|',
+              'bulletedList',
+              'numberedList',
+              '|',
+              'indent',
+              'outdent',
+              '|',
+              'link',
+              'imageUpload',
+              'blockQuote',
+              'insertTable',
+              'alignment',
+              'mediaEmbed',
+              'undo',
+              'redo',
+              'pageBreak',
+              'horizontalLine'
+            ]
+          },
+          language: (typeof CRM.config.locale == 'string' ? CRM.config.locale.substr(0,2) : 'en'),
+          image: {
+            toolbar: [
+              'imageTextAlternative',
+              'imageStyle:full',
+              'imageStyle:side'
+            ]
+          },
+          table: {
+            contentToolbar: [
+              'tableColumn',
+              'tableRow',
+              'mergeTableCells',
+              'tableCellProperties',
+              'tableProperties'
+            ]
+          },
+          licenseKey: '',
+
+        }).then(onReadyElFinder);
     }
 
     if ($(item).hasClass('crm-wysiwyg-enabled')) {
@@ -319,7 +381,12 @@
         initialize();
       } else {
         if (CRM.config.ELFinderLocation) {
-          CRM.loadScript(CRM.config.CKEditor5Location).done(CRM.loadScript(CRM.config.ELFinderLocation).done(initialize));
+          if (CRM.config.CKEditor5Language) {
+            CRM.loadScript(CRM.config.CKEditor5Language).done(CRM.loadScript(CRM.config.CKEditor5Location).done(CRM.loadScript(CRM.config.ELFinderLocation).done(initialize)));
+          }
+          else {
+            CRM.loadScript(CRM.config.CKEditor5Location).done(CRM.loadScript(CRM.config.ELFinderLocation).done(initialize));
+          }
         }
         else {
           CRM.loadScript(CRM.config.CKEditor5Location).done(initialize);
