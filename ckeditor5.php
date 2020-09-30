@@ -154,8 +154,12 @@ function ckeditor5_civicrm_themes(&$themes) {
 function ckeditor5_civicrm_coreResourceList(&$items, $region) {
   if ($region === 'html-header') {
     if (Civi::settings()->get('editor_id') === 'CKEditor5-elfinder') {
+      $locale = CRM_Core_I18n::getLocale();
+      $lang = substr($locale, 0, 2);
+
       $items[] = [
         'config' => [
+          'CKEditor5Language' => ($lang != 'en' ? CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/ckeditor5/ckeditor-classic-build/translations/' . $lang . '.js') : ''),
           'wysisygScriptLocation' => CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/wysiwyg/crm.ckeditor5.js'),
           // Note that I am just using 'classic build' at the moment - not a configured
           // build so no build in the path.
