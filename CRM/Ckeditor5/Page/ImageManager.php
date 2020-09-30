@@ -10,7 +10,7 @@ class CRM_Ckeditor5_Page_ImageManager extends CRM_Core_Page {
    * @throws \Exception
    */
   public function run() {
-    if (!CRM_Core_Permission::check('access uploaded Files')) {
+    if (!CRM_Core_Permission::check('access uploaded files')) {
       throw new CRM_Core_Exception('Permission denied');
     }
 
