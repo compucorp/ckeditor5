@@ -75,8 +75,7 @@ Administer->Customize Data and Screens->Display Preferences
 
 ## Known Issues
 
-- the language is not yet passed through to the editor. It should be added in crm.ckeditor5.js
-where [lang](https://github.com/Studio-42/elFinder/wiki/Client-configuration-options-2.1#lang) is set.
+- The editor language only works in the ElFinder mode, and is set according to the current CiviCRM language, but Ckeditor5 ships its own set of translations which may not include all CiviCRM languages (see the files in js/ckeditor5/ckeditor-classic-build/translations).
 - some session errors are visible when using elfinder with debug enabled - need to implement a  [session override](https://github.com/Studio-42/elFinder/wiki/Connector-configuration-options-2.1#session-218)
 - The file browser for elFinder is in the background when popups are on - but given the
 previous item this is OK for now.
