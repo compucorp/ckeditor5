@@ -352,6 +352,8 @@
           language: (typeof CRM.config.locale == 'string' ? CRM.config.locale.substr(0,2) : 'en'),
           image: {
             toolbar: [
+              'imageResize',
+              '|',
               'imageTextAlternative',
               'imageStyle:full',
               'imageStyle:side'
