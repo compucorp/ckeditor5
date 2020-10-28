@@ -9,6 +9,6 @@
 }
 
 /* Place elfinder above CiviCRM popup */
-.dialogelfinder {
+.ui-front.dialogelfinder {
   z-index: 9000;
 }
