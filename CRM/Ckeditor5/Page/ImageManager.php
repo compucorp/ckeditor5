@@ -149,7 +149,7 @@ class CRM_Ckeditor5_Page_ImageManager extends CRM_Core_Page {
         : NULL;                                 // else elFinder decide it itself
     }
 
-    $requiredDirectories = ['persist/editorimages', 'persist/editorimages/trash', 'persist/editorimages/trash.tmp'];
+    $requiredDirectories = ['persist/contribute/images/.trash', 'persist/contribute/images/.trash/.tmb'];
     foreach ($requiredDirectories as $directory) {
       $directory = Civi::paths()->getPath('[civicrm.files]/' . $directory);
       if (!is_dir($directory) && !mkdir($directory)) {
@@ -166,9 +166,9 @@ class CRM_Ckeditor5_Page_ImageManager extends CRM_Core_Page {
         [
           'driver' => 'LocalFileSystem',           // driver for accessing file system (REQUIRED)
           // path to files (REQUIRED)
-          'path' => Civi::paths()->getPath('[civicrm.files]/persist'),
+          'path' => Civi::paths()->getPath('[civicrm.files]/persist/contribute/images'),
           // URL to files (REQUIRED)
-          'URL' => Civi::paths()->getUrl('[civicrm.files]/persist'),
+          'URL' => Civi::paths()->getUrl('[civicrm.files]/persist/contribute/images'),
           'trashHash' => 't1_Lw',                     // elFinder's hash of trash folder
           'winHashFix' => DIRECTORY_SEPARATOR !== '/', // to make hash same to Linux one on windows too
           'uploadDeny' => ['all'],                // All Mimetypes not allowed to upload
@@ -180,8 +180,8 @@ class CRM_Ckeditor5_Page_ImageManager extends CRM_Core_Page {
         [
           'id' => '1',
           'driver' => 'Trash',
-          'path' => Civi::paths()->getPath('[civicrm.files]/persist/editorimages/trash/') .'/.trash/',
-          'tmbURL' => Civi::paths()->getUrl('[civicrm.files]/persist/editorimages/trash/.tmb/'),
+          'path' => Civi::paths()->getPath('[civicrm.files]/persist/contribute/images/.trash/'),
+          'tmbURL' => Civi::paths()->getUrl('[civicrm.files]/persist/contribute/images/.trash/.tmb/'),
           'winHashFix' => DIRECTORY_SEPARATOR !== '/', // to make hash same to Linux one on windows too
           'uploadDeny' => ['all'],                // Recomend the same settings as the original volume that uses the trash
           'uploadAllow' => ['image/x-ms-bmp', 'image/gif', 'image/jpeg', 'image/png', 'image/x-icon', 'text/plain'], // Same as above
