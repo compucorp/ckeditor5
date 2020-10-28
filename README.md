@@ -16,24 +16,22 @@ This implementation gets away from  the kcfinder file manager  which was last  u
 in 2014. KcFinder was  brittle around paths - especially  for sites with non-standard layouts
 like symlinks or Drupal8.
 
-Currently the packaged version comes with 2 options - embedded images is useful 
-for sites operating behind a firewall as it embeds any uploaded images into the html
-(as a base64 blob), meaning that images embedded in emails will not be inaccessible to the recipients.
-For example a user who is sending an email from CiviCRM from behind a firewall who wants to add a signature
-cannot use the traditional ckeditor4 image insert because the image  will
-be located behind the firewall and inaccessible to the reader. By embedding it
-it will be available.
+Currently the packaged version comes with 2 options:
+
+* CKEditor5 with uploaded images (recommended) - works in the same way as
+  ckeditor4 did, by storing the files on the filesystem. It uses the elfinder
+  plugin (eventually we could add support for other storage backends).
+* CKEditor5 with embedded images - useful for sites operating behind a firewall
+  as it embeds any uploaded images into the html (as a base64 blob), meaning
+  that images embedded in emails will not be inaccessible to the recipients.
+  For example a user who is sending an email from CiviCRM from behind a firewall
+  who wants to add a signature cannot use the traditional ckeditor4 image insert
+  because the image will be located behind the firewall and inaccessible to the
+  reader. By embedding it it will be available. However, this can have an impact
+  on the size of the database.
 
 Note - there are discrepancies between email clients and some
 might suppress or mis-display embedded images, as some might suppress linked ones.
-I also hope to support [elfinder](https://github.com/Studio-42/elFinder#downloads) integration as an alternative inn future
-
-
-The second option uses ElFinder is also an option for using uploaded files. I've labeled it experimental
-because it has some gaps. Intriguingly ElFinder also supports google drive, dropbox
-or Onedrive as backend file systems. This is not currently enabled and requires some
-credentials etc.
-
 
 The extension is licensed under [AGPL-3.0](LICENSE.txt).
 
