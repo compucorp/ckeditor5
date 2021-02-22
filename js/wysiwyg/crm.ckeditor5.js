@@ -435,7 +435,10 @@
   CRM.wysiwyg.insert = function(item, text) {
     var editor = getInstance(item);
     if (editor) {
-      editor.insertText(text);
+      editor.model.change(writer => {
+        const insertPosition = editor.model.document.selection.getFirstPosition();
+        writer.insertText(text, insertPosition);
+      });
     } else {
       CRM.wysiwyg._insertIntoTextarea(item, text);
     }
