@@ -30,7 +30,7 @@ class CRM_Ckeditor5_Page_ImageManager extends CRM_Core_Page {
     // define('ELFINDER_JPEGTRAN_PATH', '/PATH/TO/jpegtran');
     // define('ELFINDER_FFMPEG_PATH',   '/PATH/TO/ffmpeg');
 
-    define('ELFINDER_CONNECTOR_URL', CRM_Utils_System::url('civicrm/image/access'));
+    define('ELFINDER_CONNECTOR_URL', CRM_Utils_System::url('civicrm/image/access', NULL, TRUE, NULL, FALSE, FALSE, TRUE));
     // see elFinder::getConnectorUrl()
 
     // define('ELFINDER_DEBUG_ERRORLEVEL', -1); // Error reporting level of debug mode

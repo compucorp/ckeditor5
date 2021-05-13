@@ -28,7 +28,7 @@
       // elfinder folder hash of the destination folder to be uploaded in this CKeditor 5
       const uploadTargetHash = 'l1_Lw';
       // elFinder connector URL
-      const connectorUrl = CRM.config.ELFinderConnnector;
+      const connectorUrl = CRM.url('civicrm/image/access', null, 'back');
       const ckf = editor.commands.get('ckfinder'),
         fileRepo = editor.plugins.get('FileRepository'),
         ntf = editor.plugins.get('Notification'),
