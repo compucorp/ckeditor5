@@ -356,8 +356,18 @@
               '|',
               'imageTextAlternative',
               'imageStyle:full',
-              'imageStyle:side'
-            ]
+              'imageStyle:side',
+              'imageStyle:alignLeft',
+              'imageStyle:alignCenter',
+              'imageStyle:alignRight',
+            ],
+            styles: [
+              'full',
+              'side',
+              'alignLeft',
+              'alignCenter',
+              'alignRight',
+            ],
           },
           table: {
             contentToolbar: [
