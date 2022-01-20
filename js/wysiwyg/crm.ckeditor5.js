@@ -209,6 +209,13 @@
 
       instances[name] = editor;
 
+      // Update source element on blur; especially important for javascript-based UIs
+      editor.editing.view.document.on('blur', function() {
+        editor.updateSourceElement();
+        $(item).trigger("blur");
+        $(item).trigger("change");
+      });
+
       editor.on('destroy', function(e) {
         var name = $(e.source.sourceElement).attr('name') || $(e.source.sourceElement).attr('id');
         delete instances[name];
