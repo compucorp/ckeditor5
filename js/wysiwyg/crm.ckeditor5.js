@@ -229,12 +229,26 @@
      */
     function initialize() {
       if (CRM.config.ELFinderLocation) {
-        initializeWithELFinder();
+        if (CRM.config.CKEditor5CustomConfig) {
+          initializeCustomWithELFinder();
+        }
+        else{
+          initializeWithELFinder();
+        }
       }
       else {
         initializeWithBaseUploader();
       }
     }
+
+    /**
+     * Create a custom editor instance with Elfinder.
+     */
+    function initializeCustomWithELFinder() {
+      $(item).addClass('crm-wysiwyg-enabled');
+      ClassicEditor.create($(item)[0], CRM.config.CKEditor5CustomConfig).then(onReadyElFinder);
+    }
+
     /**
      * Create the editor instance with the BaseUploader.
      */
