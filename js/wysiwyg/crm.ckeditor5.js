@@ -297,7 +297,11 @@
               'undo',
               'redo',
               'pageBreak',
-              'horizontalLine'
+              'horizontalLine',
+              '|',
+              'HtmlEmbed',
+              'SourceEditing',
+              'Code',
             ]
           },
           language: (typeof CRM.config.locale == 'string' ? CRM.config.locale.substr(0,2) : 'en'),
@@ -367,7 +371,11 @@
               'specialCharacters',
               'mediaEmbed',
               'undo',
-              'redo'
+              'redo',
+              '|',
+              'HtmlEmbed',
+              'SourceEditing',
+              'Code'
             ]
           },
           language: (typeof CRM.config.locale == 'string' ? CRM.config.locale.substr(0,2) : 'en'),
