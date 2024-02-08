@@ -48,11 +48,11 @@ function ckeditor5_civicrm_coreResourceList(&$items, $region) {
 
       $items[] = [
         'config' => [
-          'CKEditor5Language' => ($lang != 'en' ? CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/ckeditor5/ckeditor-classic-build/translations/' . $lang . '.js') : ''),
+          'CKEditor5Language' => ($lang != 'en' ? CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/ckeditor5/ckeditor-classic-build/build/translations/' . $lang . '.js') : ''),
           'wysisygScriptLocation' => CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/wysiwyg/crm.ckeditor5.js'),
           // Note that I am just using 'classic build' at the moment - not a configured
           // build so no build in the path.
-          'CKEditor5Location' => CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/ckeditor5/ckeditor-classic-build/ckeditor.js'),
+          'CKEditor5Location' => CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/ckeditor5/ckeditor-classic-build/build/ckeditor.js'),
           'ELFinderLocation' => CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/elFinder/js/elfinder.min.js'),
         ],
       ];
