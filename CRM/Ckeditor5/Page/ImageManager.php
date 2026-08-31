@@ -169,6 +169,7 @@ class CRM_Ckeditor5_Page_ImageManager extends CRM_Core_Page {
           'path' => Civi::paths()->getPath('[civicrm.files]/persist/contribute/images'),
           // URL to files (REQUIRED)
           'URL' => Civi::paths()->getUrl('[civicrm.files]/persist/contribute/images'),
+          'tmbPath' => 'tmb',
           'trashHash' => 't1_Lw',                     // elFinder's hash of trash folder
           'winHashFix' => DIRECTORY_SEPARATOR !== '/', // to make hash same to Linux one on windows too
           'uploadDeny' => ['all'],                // All Mimetypes not allowed to upload
@@ -181,7 +182,7 @@ class CRM_Ckeditor5_Page_ImageManager extends CRM_Core_Page {
           'id' => '1',
           'driver' => 'Trash',
           'path' => Civi::paths()->getPath('[civicrm.files]/persist/contribute/images/.trash/'),
-          'tmbURL' => Civi::paths()->getUrl('[civicrm.files]/persist/contribute/images/.trash/.tmb/'),
+          'tmbURL' => 'self',
           'winHashFix' => DIRECTORY_SEPARATOR !== '/', // to make hash same to Linux one on windows too
           'uploadDeny' => ['all'],                // Recomend the same settings as the original volume that uses the trash
           'uploadAllow' => ['image/x-ms-bmp', 'image/gif', 'image/jpeg', 'image/png', 'image/x-icon', 'text/plain'], // Same as above

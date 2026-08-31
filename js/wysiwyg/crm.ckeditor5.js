@@ -254,77 +254,8 @@
      */
     function initializeWithBaseUploader() {
       $(item).addClass('crm-wysiwyg-enabled');
-      // @todo make this language-alterable and configurable in some way  (UI or config file).
-      // Note that because the base-uploader package is constructed as a 'build' it
-      // has no toolbar by default (as opposed to the elfinder which leverages the classic-build')
-      ClassicEditor.create($(item)[0], {
-          toolbar: {
-            // With this it wraps rather than offering a drop down for more.
-            // I'm on the fence about which is better but this is consistent with
-            // ckeditor4. If we added configurability we could expose this.
-            // https://ckeditor.com/docs/ckeditor5/latest/api/module_core_editor_editorconfig-EditorConfig.html#member-toolbar
-            shouldNotGroupWhenFull: true,
-            items: [
-              'heading',
-              '|',
-              'bold',
-              'underline',
-              'italic',
-              'strikethrough',
-              'superscript',
-              'subscript',
-              'highlight',
-              '|',
-              'removeFormat',
-              'specialCharacters',
-              'fontFamily',
-              'fontColor',
-              'fontBackgroundColor',
-              'fontSize',
-              '|',
-              'bulletedList',
-              'numberedList',
-              '|',
-              'indent',
-              'outdent',
-              '|',
-              'link',
-              'imageUpload',
-              'blockQuote',
-              'insertTable',
-              'alignment',
-              'mediaEmbed',
-              'undo',
-              'redo',
-              'pageBreak',
-              'horizontalLine',
-              '|',
-              'HtmlEmbed',
-              'SourceEditing',
-              'Code',
-            ]
-          },
-          language: (typeof CRM.config.locale == 'string' ? CRM.config.locale.substr(0,2) : 'en'),
-          image: {
-            toolbar: [
-              'imageTextAlternative',
-              'imageStyle:full',
-              'imageStyle:side'
-            ]
-          },
-          table: {
-            contentToolbar: [
-              'tableColumn',
-              'tableRow',
-              'mergeTableCells',
-              'tableCellProperties',
-              'tableProperties'
-            ]
-          },
-          licenseKey: '',
-
-        }
-      ).then(onReady);
+      var config = CRM.config.CKEditor5CustomConfig || getDefaultConfig(false);
+      ClassicEditor.create($(item)[0], config).then(onReady);
     }
 
     /**
@@ -332,84 +263,144 @@
      */
     function initializeWithELFinder() {
       $(item).addClass('crm-wysiwyg-enabled');
-      ClassicEditor.create($(item)[0], {
-          toolbar: {
-            // With this it wraps rather than offering a drop down for more.
-            // I'm on the fence about which is better but this is consistent with
-            // ckeditor4. If we added configurability we could expose this.
-            // https://ckeditor.com/docs/ckeditor5/latest/api/module_core_editor_editorconfig-EditorConfig.html#member-toolbar
-            shouldNotGroupWhenFull: true,
-            items: [
-              'heading',
-              '|',
-              'bold',
-              'underline',
-              'italic',
-              'strikethrough',
-              'superscript',
-              'subscript',
-              '|',
-              'bulletedList',
-              'numberedList',
-              '|',
-              'removeFormat',
-              'fontFamily',
-              'fontColor',
-              'fontBackgroundColor',
-              'fontSize',
-              '|',
-              'indent',
-              'outdent',
-              'alignment',
-              '|',
-              'link',
-              'imageUpload',
-              'ckfinder',
-              'blockQuote',
-              'insertTable',
-              'horizontalLine',
-              'specialCharacters',
-              'mediaEmbed',
-              'undo',
-              'redo',
-              '|',
-              'HtmlEmbed',
-              'SourceEditing',
-              'Code'
-            ]
-          },
-          language: (typeof CRM.config.locale == 'string' ? CRM.config.locale.substr(0,2) : 'en'),
-          image: {
-            toolbar: [
-              'imageResize',
-              '|',
-              'imageTextAlternative',
-              'imageStyle:full',
-              'imageStyle:side',
-              'imageStyle:alignLeft',
-              'imageStyle:alignCenter',
-              'imageStyle:alignRight',
-            ],
-            styles: [
-              'full',
-              'side',
-              'alignLeft',
-              'alignCenter',
-              'alignRight',
-            ],
-          },
-          table: {
-            contentToolbar: [
-              'tableColumn',
-              'tableRow',
-              'mergeTableCells',
-              'tableCellProperties',
-              'tableProperties'
-            ]
-          },
-          licenseKey: '',
+      ClassicEditor.create($(item)[0], getDefaultConfig(true)).then(onReadyElFinder);
+    }
 
-        }).then(onReadyElFinder);
+    /**
+     * Default editor configuration, shared by both packaged editors.
+     *
+     * @param {Boolean} withElFinder
+     *   Whether the elFinder file manager is available (adds the 'ckfinder'
+     *   button, whose command is taken over in onReadyElFinder()).
+     * @return {Object}
+     */
+    function getDefaultConfig(withElFinder) {
+      var toolbarItems = [
+        'heading',
+        'style',
+        '|',
+        'bold',
+        'italic',
+        'underline',
+        'strikethrough',
+        'subscript',
+        'superscript',
+        'removeFormat',
+        '|',
+        'fontFamily',
+        'fontSize',
+        'fontColor',
+        'fontBackgroundColor',
+        'highlight',
+        '|',
+        'bulletedList',
+        'numberedList',
+        'todoList',
+        'outdent',
+        'indent',
+        'alignment',
+        '|',
+        'link',
+        'insertImage',
+        'insertTable',
+        'blockQuote',
+        'mediaEmbed',
+        'horizontalLine',
+        'pageBreak',
+        'specialCharacters',
+        '|',
+        'findAndReplace',
+        'undo',
+        'redo',
+        '|',
+        'sourceEditing',
+        'htmlEmbed',
+        'code'
+      ];
+
+      if (withElFinder) {
+        toolbarItems.splice(toolbarItems.indexOf('insertImage') + 1, 0, 'ckfinder');
+      }
+
+      return {
+        toolbar: {
+          // With this it wraps rather than offering a drop down for more.
+          // I'm on the fence about which is better but this is consistent with
+          // ckeditor4. If we added configurability we could expose this.
+          // https://ckeditor.com/docs/ckeditor5/latest/api/module_core_editor_editorconfig-EditorConfig.html#member-toolbar
+          shouldNotGroupWhenFull: true,
+          items: toolbarItems
+        },
+        language: (typeof CRM.config.locale == 'string' ? CRM.config.locale.substr(0, 2) : 'en'),
+        image: {
+          toolbar: [
+            'imageStyle:inline',
+            'imageStyle:block',
+            'imageStyle:side',
+            '|',
+            'imageStyle:alignLeft',
+            'imageStyle:alignCenter',
+            'imageStyle:alignRight',
+            '|',
+            'toggleImageCaption',
+            'imageTextAlternative',
+            'linkImage',
+            '|',
+            'resizeImage'
+          ]
+        },
+        table: {
+          contentToolbar: [
+            'tableColumn',
+            'tableRow',
+            'mergeTableCells',
+            'tableCellProperties',
+            'tableProperties',
+            'toggleTableCaption'
+          ]
+        },
+        // The "Styles" dropdown, the closest equivalent to ckeditor4's Styles
+        // menu. These are deliberately generic - a site that wants its own
+        // house styles should override `style.definitions` through
+        // CRM.config.CKEditor5CustomConfig. The matching CSS lives in
+        // css/ckeditor.css.
+        style: {
+          definitions: [
+            {name: 'Lead paragraph', element: 'p', classes: ['crm-lead']},
+            {name: 'Small print', element: 'p', classes: ['crm-small']},
+            {name: 'Callout box', element: 'p', classes: ['crm-callout']},
+            {name: 'Bordered table', element: 'table', classes: ['crm-table-bordered']},
+            {name: 'Marker', element: 'span', classes: ['crm-marker']},
+            {name: 'Muted text', element: 'span', classes: ['crm-muted']}
+          ]
+        },
+        // GeneralHtmlSupport is in both builds but does nothing until it is told
+        // what to allow. Without this, ckeditor5 strips anything it has no model
+        // for - inline styles, classes, <div> wrappers - which quietly mangles
+        // markup typed into the Source view or pasted from an existing template.
+        // https://ckeditor.com/docs/ckeditor5/latest/features/html/general-html-support.html
+        //
+        // The FullPage plugin (also from ckeditor5-html-support, and built into
+        // both bundles) is what preserves everything OUTSIDE <body> - the
+        // doctype, <html>, <head>, <title>, <meta> and any <style> block. It is
+        // the ckeditor5 equivalent of ckeditor4's config.fullPage, and it is what
+        // lets a complete HTML email survive being saved as a message template.
+        // Content that is only a fragment is left as a fragment - no wrapper is
+        // added - so existing templates are unaffected.
+        // https://ckeditor.com/docs/ckeditor5/latest/features/html/full-page-html.html
+        htmlSupport: {
+          allow: [
+            {name: /.*/, styles: true, classes: true},
+            {name: /^(div|section|article|header|footer|aside|font|table|tbody|thead|tr|td|th)$/, attributes: /^(?!on)/},
+            {name: 'style'}
+          ]
+        },
+        fontSize: {
+          options: ['default', 10, 12, 14, 16, 18, 20, 24, 32],
+          supportAllValues: true
+        },
+        licenseKey: ''
+      };
     }
 
     if ($(item).hasClass('crm-wysiwyg-enabled')) {
@@ -420,17 +411,15 @@
       if (window.ClassicEditor) {
         initialize();
       } else {
+        // Every one of these has to have finished before initialize() runs.
+        var pending = [CRM.loadScript(CRM.config.CKEditor5Location)];
         if (CRM.config.ELFinderLocation) {
+          pending.push(CRM.loadScript(CRM.config.ELFinderLocation));
           if (CRM.config.CKEditor5Language) {
-            CRM.loadScript(CRM.config.CKEditor5Language).done(CRM.loadScript(CRM.config.CKEditor5Location).done(CRM.loadScript(CRM.config.ELFinderLocation).done(initialize)));
-          }
-          else {
-            CRM.loadScript(CRM.config.CKEditor5Location).done(CRM.loadScript(CRM.config.ELFinderLocation).done(initialize));
+            pending.push(CRM.loadScript(CRM.config.CKEditor5Language));
           }
         }
-        else {
-          CRM.loadScript(CRM.config.CKEditor5Location).done(initialize);
-        }
+        $.when.apply($, pending).done(initialize);
       }
     } else {
       deferred.reject();

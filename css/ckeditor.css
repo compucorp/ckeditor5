@@ -1,6 +1,7 @@
 /* Set the height of the editor */
 .ck-editor__editable_inline {
-  min-height: 20px;
+  min-height: 250px;
+  position: relative;
 }
 
 /* Set the width of the editor */
@@ -33,3 +34,49 @@ html body .ck.ck-editor__main * {
   color: black;
 }
 
+.ck-content .crm-lead {
+  font-size: 1.15em;
+  line-height: 1.5;
+  color: #33495e;
+}
+
+.ck-content .crm-small {
+  font-size: 0.85em;
+  color: #6b7785;
+}
+
+.ck-content .crm-callout {
+  padding: 0.75em 1em;
+  border-left: 4px solid #4d7fa4;
+  background: #f2f7fa;
+}
+
+.ck-content .crm-table-bordered,
+.ck-content .crm-table-bordered td,
+.ck-content .crm-table-bordered th {
+  border: 1px solid #b5c2cd;
+}
+
+.ck-content .crm-marker {
+  background: #fdf3a7;
+}
+
+.ck-content .crm-muted {
+  color: #6b7785;
+}
+
+.ck-source-editing-area textarea {
+  min-height: 400px;
+  font-family: monospace;
+}
+
+/* Keep oversized images inside the editor box. */
+.ck-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.elfinder .elfinder-overlay,
+.elfinder-overlay {
+  z-index: 999 !important;
+}

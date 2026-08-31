@@ -56,8 +56,8 @@ function ckeditor5_civicrm_coreResourceList(&$items, $region) {
           'ELFinderLocation' => CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/elFinder/js/elfinder.min.js'),
         ],
       ];
-      CRM_Core_Resources::singleton()->addStyleUrl(CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/elFinder/css/elfinder.min.css'));
-      CRM_Core_Resources::singleton()->addStyleUrl(CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'css/ckeditor.css'));
+      CRM_Core_Resources::singleton()->addStyleUrl(CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/elFinder/css/elfinder.min.css', TRUE));
+      CRM_Core_Resources::singleton()->addStyleUrl(CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'css/ckeditor.css', TRUE));
     }
 
     if (Civi::settings()->get('editor_id') === 'CKEditor5-base64') {
@@ -70,7 +70,7 @@ function ckeditor5_civicrm_coreResourceList(&$items, $region) {
           'ELFinderLocation' => NULL,
         ],
       ];
-      CRM_Core_Resources::singleton()->addStyleUrl(CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'css/ckeditor.css'));
+      CRM_Core_Resources::singleton()->addStyleUrl(CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'css/ckeditor.css', TRUE));
     }
 
   }
