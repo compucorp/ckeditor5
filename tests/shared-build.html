@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../css/ckeditor.css">
+<title>Shared CKEditor build smoke test</title>
+<h1>Shared CKEditor build smoke test</h1>
+<p>This standalone test checks plugin activation and Base64 conversion, not the CiviCRM connector.</p>
+<h2>Base64</h2><div id="base64"><p>Base64 mode</p></div>
+<h2>elFinder plugin configuration</h2><div id="elfinder"><p>elFinder mode</p></div>
+<pre id="result">Running</pre>
+<script src="../js/ckeditor5/ckeditor-classic-build/build/ckeditor.js"></script>
+<script>
+// Only the configuration helper is exercised; this is not a CiviCRM runtime.
+const $ = item => ({attr: name => item.getAttribute(name), trigger() {}});
+$.extend = Object.assign;
+$.isPlainObject = value => value !== null && typeof value === 'object'
+  && Object.getPrototypeOf(value) === Object.prototype;
+window.CRM = {$, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
+</script>
+<script src="../js/wysiwyg/crm.ckeditor5.js"></script>
+<script>
+(async function () {
+  const check = (condition, message) => { if (!condition) throw new Error(message); };
+  check(window.CKEDITOR_VERSION === '49.0.0', 'Unexpected CKEditor runtime version');
+  check(window.CKEDITOR && window.CKEDITOR.Plugin, 'Shared CKEditor runtime API is missing');
+  class ExternalSmokePlugin extends window.CKEDITOR.Plugin {
+    static get pluginName() {
+      return 'ExternalSmokePlugin';
+    }
+  }
+  CRM.ckeditor5.registerPlugin('ExternalSmokePlugin', ExternalSmokePlugin, {
+    ckeditorVersion: window.CKEDITOR.version
+  });
+  const base64Element = document.querySelector('#base64');
+  const base64 = await ClassicEditor.create({
+    ...CRM.wysiwyg.getConfig(base64Element, false), attachTo: base64Element
+  });
+  check(base64.plugins.has('Base64UploadAdapter'), 'Base64 adapter missing');
+  check(!base64.plugins.has('CKFinder'), 'File manager must be disabled');
+  check(!base64.plugins.has('CKFinderUploadAdapter'), 'Conflicting upload adapter');
+  const repository = base64.plugins.get('FileRepository');
+  repository.createUploadAdapter = CRM.ckeditor5.createValidatedBase64UploadAdapter;
+  const imageBlob = await new Promise(resolve => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    canvas.getContext('2d').fillRect(0, 0, 1, 1);
+    canvas.toBlob(resolve, 'image/png');
+  });
+  const file = new File([imageBlob], 'test.png', {type: 'image/png'});
+  const loader = repository.createLoader(file);
+  const result = await loader.upload();
+  check(result.default.startsWith('data:image/png;base64,'), 'Base64 conversion failed');
+  repository.destroyLoader(loader);
+  const invalidLoader = repository.createLoader(new File(['not an image'], 'invalid.png', {type: 'image/png'}));
+  try {
+    await invalidLoader.upload();
+    throw new Error('Invalid Base64 image was accepted');
+  }
+  catch (error) {
+    check(error.message.includes('could not be decoded'), 'Invalid image failed for an unexpected reason');
+  }
+  repository.destroyLoader(invalidLoader);
+  const oversizedLoader = repository.createLoader(new File(
+    [new Uint8Array(CRM.ckeditor5.base64MaximumFileSize + 1)],
+    'oversized.png',
+    {type: 'image/png'}
+  ));
+  try {
+    await oversizedLoader.upload();
+    throw new Error('Oversized Base64 image was accepted');
+  }
+  catch (error) {
+    check(error.message.includes('10 MiB'), 'Oversized image failed for an unexpected reason');
+  }
+  repository.destroyLoader(oversizedLoader);
+  const elfinderElement = document.querySelector('#elfinder');
+  const elfinder = await ClassicEditor.create({
+    ...CRM.wysiwyg.getConfig(elfinderElement, true), attachTo: elfinderElement
+  });
+  check(!elfinder.plugins.has('Base64UploadAdapter'), 'Base64 must be disabled');
+  check(elfinder.plugins.has('CKFinder'), 'File manager integration missing');
+  check(Boolean(elfinder.commands.get('ckfinder')), 'File manager command missing');
+  // Presentation preservation uses email-compatible tables without a figure.
+  const source = '<h2>Title</h2><p><strong>Bold</strong> <span style="color:#0000ff;">Blue</span></p><table><tbody><tr><td style="background-color:#ff0000;">Cell</td></tr></tbody></table>';
+  const expected = source.replace('<table>', '<table class="table content-table">');
+  for (const editor of [base64, elfinder]) {
+    check(editor.plugins.has('ExternalSmokePlugin'), 'Registered external plugin missing');
+    editor.setData(source);
+    check(editor.getData() === expected, 'Unexpected plain-table output');
+    for (const Plugin of ClassicEditor.builtinPlugins) {
+      if (!editor.config.get('removePlugins').includes(Plugin.pluginName)) {
+        check(editor.plugins.has(Plugin), 'Missing plugin: ' + Plugin.pluginName);
+      }
+    }
+    for (const item of editor.config.get('toolbar.items').filter(item => item !== '|')) {
+      check(editor.ui.componentFactory.has(item), 'Missing toolbar component: ' + item);
+    }
+    check(getComputedStyle(editor.ui.view.toolbar.element).display === 'flex', 'Toolbar CSS did not load');
+  }
+  window.sharedBuildEditors = {base64, elfinder};
+  window.sharedBuildTest = {passed: true, version: window.CKEDITOR_VERSION, html: base64.getData()};
+  document.querySelector('#result').textContent = 'PASS: both modes initialize; Base64 validation succeeds.';
+})().catch(error => {
+  window.sharedBuildTest = {passed: false, error: error.message};
+  document.querySelector('#result').textContent = 'FAIL: ' + error.message;
+});
+</script>
+</html>
