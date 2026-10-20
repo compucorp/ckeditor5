@@ -1,67 +1,81 @@
 /**
- * @license Copyright (c) 2014-2024, CKSource Holding sp. z o.o. All rights reserved.
- * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-oss-license
+ * @license Copyright (c) 2014-2026, CKSource Holding sp. z o.o. All rights reserved.
+ * For licensing, see LICENSE.md or https://ckeditor.com/legal/ckeditor-licensing-options
  */
 
-import { ClassicEditor } from '@ckeditor/ckeditor5-editor-classic';
-
-import { CKFinderUploadAdapter } from '@ckeditor/ckeditor5-adapter-ckfinder';
-import { Alignment } from '@ckeditor/ckeditor5-alignment';
-import { Autoformat } from '@ckeditor/ckeditor5-autoformat';
+import * as CKEditor from 'ckeditor5';
 import {
+	Alignment,
+	Autoformat,
+	Base64UploadAdapter,
+	BlockQuote,
 	Bold,
+	CKFinder,
+	CKFinderUploadAdapter,
+	ClassicEditor,
+	CloudServices,
 	Code,
-	Italic,
-	Strikethrough,
-	Subscript,
-	Superscript,
-	Underline
-} from '@ckeditor/ckeditor5-basic-styles';
-import { BlockQuote } from '@ckeditor/ckeditor5-block-quote';
-import { CKFinder } from '@ckeditor/ckeditor5-ckfinder';
-import { CloudServices } from '@ckeditor/ckeditor5-cloud-services';
-import { CodeBlock } from '@ckeditor/ckeditor5-code-block';
-import type { EditorConfig } from '@ckeditor/ckeditor5-core';
-import { Essentials } from '@ckeditor/ckeditor5-essentials';
-import { FontBackgroundColor, FontColor, FontFamily, FontSize } from '@ckeditor/ckeditor5-font';
-import { Heading } from '@ckeditor/ckeditor5-heading';
-import { HorizontalLine } from '@ckeditor/ckeditor5-horizontal-line';
-import { HtmlEmbed } from '@ckeditor/ckeditor5-html-embed';
-import { GeneralHtmlSupport } from '@ckeditor/ckeditor5-html-support';
-import {
+	CodeBlock,
+	Essentials,
+	FontBackgroundColor,
+	FontColor,
+	FontFamily,
+	FontSize,
+	FindAndReplace,
+	Fullscreen,
+	GeneralHtmlSupport,
+	Heading,
+	Highlight,
+	HorizontalLine,
+	HtmlEmbed,
 	Image,
 	ImageCaption,
 	ImageResize,
 	ImageStyle,
 	ImageToolbar,
-	ImageUpload
-} from '@ckeditor/ckeditor5-image';
-import { Indent } from '@ckeditor/ckeditor5-indent';
-import { Link, LinkImage } from '@ckeditor/ckeditor5-link';
-import { List, ListProperties } from '@ckeditor/ckeditor5-list';
-import { MediaEmbed } from '@ckeditor/ckeditor5-media-embed';
-import { Paragraph } from '@ckeditor/ckeditor5-paragraph';
-import { PasteFromOffice } from '@ckeditor/ckeditor5-paste-from-office';
-import { RemoveFormat } from '@ckeditor/ckeditor5-remove-format';
-import { SourceEditing } from '@ckeditor/ckeditor5-source-editing';
-import { SpecialCharacters } from '@ckeditor/ckeditor5-special-characters';
-import { Style } from '@ckeditor/ckeditor5-style';
-import {
+	ImageUpload,
+	Indent,
+	Italic,
+	Link,
+	LinkImage,
+	List,
+	ListProperties,
+	MediaEmbed,
+	PageBreak,
+	Paragraph,
+	PasteFromOffice,
+	PlainTableOutput,
+	RemoveFormat,
+	SourceEditing,
+	SpecialCharacters,
+	SpecialCharactersEssentials,
+	Strikethrough,
+	Style,
+	Subscript,
+	Superscript,
 	Table,
 	TableCellProperties,
 	TableColumnResize,
-	TableToolbar
-} from '@ckeditor/ckeditor5-table';
-import { TextTransformation } from '@ckeditor/ckeditor5-typing';
-import { Undo } from '@ckeditor/ckeditor5-undo';
+	TableLayout,
+	TableProperties,
+	TableToolbar,
+	TextTransformation,
+	Underline,
+	Undo,
+	type EditorConfig
+} from 'ckeditor5';
 
-// You can read more about extending the build with additional plugins in the "Installing plugins" guide.
-// See https://ckeditor.com/docs/ckeditor5/latest/installation/plugins/installing-plugins.html for details.
+import 'ckeditor5/ckeditor5.css';
+
+// External plugins must use this exact runtime instead of bundling another
+// CKEditor copy, which would trigger ckeditor-duplicated-modules errors.
+( window as typeof window & { CKEDITOR: typeof CKEditor } ).CKEDITOR = CKEditor;
 
 class Editor extends ClassicEditor {
 	public static override builtinPlugins = [
 		Alignment,
 		Autoformat,
+		Base64UploadAdapter,
 		BlockQuote,
 		Bold,
 		CKFinder,
@@ -74,8 +88,11 @@ class Editor extends ClassicEditor {
 		FontColor,
 		FontFamily,
 		FontSize,
+		FindAndReplace,
+		Fullscreen,
 		GeneralHtmlSupport,
 		Heading,
+		Highlight,
 		HorizontalLine,
 		HtmlEmbed,
 		Image,
@@ -91,11 +108,14 @@ class Editor extends ClassicEditor {
 		List,
 		ListProperties,
 		MediaEmbed,
+		PageBreak,
 		Paragraph,
 		PasteFromOffice,
+		PlainTableOutput,
 		RemoveFormat,
 		SourceEditing,
 		SpecialCharacters,
+		SpecialCharactersEssentials,
 		Strikethrough,
 		Style,
 		Subscript,
@@ -103,6 +123,8 @@ class Editor extends ClassicEditor {
 		Table,
 		TableCellProperties,
 		TableColumnResize,
+		TableLayout,
+		TableProperties,
 		TableToolbar,
 		TextTransformation,
 		Underline,
@@ -110,60 +132,8 @@ class Editor extends ClassicEditor {
 	];
 
 	public static override defaultConfig: EditorConfig = {
-		toolbar: {
-			items: [
-				'heading',
-				'style',
-				'fontFamily',
-				'fontSize',
-				'fontColor',
-				'fontBackgroundColor',
-				'|',
-				'bold',
-				'italic',
-				'underline',
-				'link',
-				'specialCharacters',
-				'removeFormat',
-				'bulletedList',
-				'|',
-				'numberedList',
-				'|',
-				'outdent',
-				'indent',
-				'|',
-				'imageUpload',
-				'blockQuote',
-				'insertTable',
-				'mediaEmbed',
-				'undo',
-				'redo',
-				'|',
-				'htmlEmbed',
-				'sourceEditing',
-				'code',
-				'CKFinder'
-			]
-		},
-		language: 'en',
-		image: {
-			toolbar: [
-				'imageTextAlternative',
-				'toggleImageCaption',
-				'imageStyle:inline',
-				'imageStyle:block',
-				'imageStyle:side',
-				'linkImage'
-			]
-		},
-		table: {
-			contentToolbar: [
-				'tableColumn',
-				'tableRow',
-				'mergeTableCells',
-				'tableCellProperties'
-			]
-		}
+		licenseKey: 'GPL',
+		language: 'en'
 	};
 }
 
