@@ -1,5 +1,6 @@
 ClassicEditor
-	.create( document.querySelector( '.editor' ), {
+	.create( {
+		attachTo: document.querySelector( '.editor' ),
 		// Editor configuration.
 	} )
 	.then( editor => {

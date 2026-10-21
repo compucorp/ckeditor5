@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../css/ckeditor.css">
+<title>Presentation preservation regression tests</title>
+<h1>Presentation preservation regression tests</h1>
+<p>Synthetic fixtures based on observed email structures; no customer content.</p>
+<div id="editor" data-preset="civimail"></div>
+<pre id="result">Running</pre>
+<script src="../js/ckeditor5/ckeditor-classic-build/build/ckeditor.js"></script>
+<script>
+const $ = item => ({attr: name => item.getAttribute(name), trigger() {}});
+$.extend = Object.assign;
+$.isPlainObject = value => value !== null && typeof value === 'object'
+  && Object.getPrototypeOf(value) === Object.prototype;
+const ts = () => (text, values = {}) => Object.keys(values).reduce((result, key) => result.replace('%' + key, values[key]), text);
+window.CRM = {$, ts, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
+</script>
+<script src="../js/wysiwyg/crm.ckeditor5.js"></script>
+<script>
+(async function () {
+  const checks = [];
+  const check = (value, label) => { if (!value) throw new Error(label); checks.push(label); };
+  const element = document.querySelector('#editor');
+  const editor = await ClassicEditor.create({...CRM.wysiwyg.getConfig(element, false), civiHtmlQa: {enabled: true}, attachTo: element});
+  window.presentationEditor = editor;
+  const parse = html => new DOMParser().parseFromString(html, 'text/html');
+  const source = `<!doctype html><html lang="fr"><head>
+    <meta charset="utf-8">
+    <title>Bulletin CiviCRM</title>
+    <style type="text/css">.brand > p{color:#123456}</style>
+    <style media="screen">@media(max-width:600px){.outer{width:100%!important}}</style>
+    </head><body style="background-color:#eeeeee" lang="fr">
+    <table class="outer" align="center" width="600" cellspacing="0" role="presentation" style="width:600px;background-color:#123456;border-collapse:collapse">
+    <tbody><tr><td class="brand" bgcolor="#abcdef" style="padding:20px;font-family:Verdana;font-size:17px;background-color:#abcdef;border:2px solid #123456">
+    <p class="intro" id="intro" data-qa-remove="yes" style="margin:12px;line-height:1.5;position:relative">Hello world</p>
+    </td></tr><tr><td class="logo" align="center" valign="middle" style="background:url('../images/enable.png') center / contain no-repeat">
+    <a href="https://example.org"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="Logo" width="200"></a>
+    </td></tr><tr><td class="saved-ck5-logo">
+    <figure class="image image_resized" style="width:100%"><a href="https://example.org"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="Previously saved logo" width="200"></a></figure>
+    </td></tr></tbody></table></body></html>`;
+  editor.setData(source);
+  const qaReport = CRM.ckeditor5.attachHtmlQaReport(editor, source);
+  check(qaReport.removed.some(item => item.category === 'attributes' && item.key.includes('data-qa-remove')), 'QA reports a removed attribute');
+  check(qaReport.removed.some(item => item.category === 'styles' && item.key.includes('position')), 'QA reports a removed inline CSS property');
+  check(document.querySelector('.ck5-html-qa'), 'QA panel rendered');
+  function checkPresentation(stage, targetEditor = editor) {
+    const html = targetEditor.getData();
+    check(/^<!doctype html>/i.test(html), stage + ': doctype preserved');
+    check(/<html\b[^>]*lang="fr"/i.test(html), stage + ': html attributes preserved');
+    check(/<head>[\s\S]*<title>Bulletin CiviCRM<\/title>[\s\S]*<\/head>/i.test(html), stage + ': head metadata preserved');
+    check(!html.includes('.brand &gt; p'), stage + ': CSS child combinator not HTML-encoded');
+    const doc = parse(html);
+    check(doc.head.querySelectorAll('style').length === 2, stage + ': both stylesheets preserved in <head>');
+    check(doc.querySelector('style[media="screen"]').textContent.includes('@media'), stage + ': media query preserved');
+    check(doc.body.getAttribute('lang') === 'fr' && doc.body.style.backgroundColor === 'rgb(238, 238, 238)', stage + ': body presentation preserved on <body>');
+    check(!doc.body.querySelector('.civi-email-body'), stage + ': internal body wrapper unwrapped on export');
+    check(doc.querySelector('table.outer[role="presentation"][width="600"][cellspacing="0"]'), stage + ': table attributes preserved');
+    check(!doc.querySelector('figure.table'), stage + ': no figure wrapper');
+    check(doc.querySelector('table.outer').style.width === '600px', stage + ': width stays on table');
+    check(doc.querySelector('table.outer').style.marginLeft === 'auto'
+      && doc.querySelector('table.outer').style.marginRight === 'auto', stage + ': legacy table centering becomes inline CSS');
+    const cell = doc.querySelector('td.brand');
+    check(cell.style.backgroundColor === 'rgb(171, 205, 239)', stage + ': cell background preserved');
+    check(cell.style.padding === '20px' && cell.style.borderWidth === '2px', stage + ': cell spacing and border preserved');
+    check(cell.style.fontFamily === 'Verdana' && cell.style.fontSize === '17px', stage + ': inherited typography preserved');
+    check(doc.querySelector('p.intro#intro').style.margin === '12px', stage + ': paragraph class, id and spacing preserved');
+    const logoCell = doc.querySelector('td.logo');
+    check(logoCell.style.textAlign === 'center', stage + ': legacy cell alignment becomes inline CSS');
+    check(logoCell.style.backgroundImage.includes('enable.png'), stage + ': inline background image preserved');
+    const logoImage = logoCell.querySelector('img');
+    check(logoImage && logoImage.closest('span') && logoImage.closest('span').style.display === 'inline-block', stage + ': standalone linked image remains inline');
+    check(!logoCell.querySelector('figure.image'), stage + ': standalone linked image avoids figure markup');
+    const savedLogoCell = doc.querySelector('td.saved-ck5-logo');
+    check(savedLogoCell.style.textAlign === 'center', stage + ': previously saved CKEditor image regains centering');
+    check(savedLogoCell.querySelector('span img') && !savedLogoCell.querySelector('figure.image'), stage + ': previously saved CKEditor image becomes inline');
+    check(!targetEditor.ui.view.editable.element.querySelector('style'), stage + ': stylesheet not injected in editable DOM');
+  }
+  checkPresentation('load');
+  const paragraph = Array.from(editor.model.createRangeIn(editor.model.document.getRoot()).getItems())
+    .find(item => item.is('element', 'paragraph'));
+  editor.model.change(writer => writer.insertText('Edited: ', paragraph, 0));
+  check(editor.getData().includes('Edited: Hello world'), 'text edit applied');
+  checkPresentation('edit');
+  editor.plugins.get('SourceEditing').isSourceEditingMode = true;
+  editor.plugins.get('SourceEditing').isSourceEditingMode = false;
+  checkPresentation('source roundtrip');
+  editor.setData(editor.getData());
+  checkPresentation('reload');
+  const mjmlHeadFragment = `<title></title>
+<!--[if !mso]>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <!--<![endif]--><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<style type="text/css">#outlook a { padding: 0; }</style>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:AllowPNG/></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+<div dir="auto" lang="und" style="background-color:#fafafa;">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%"><tbody><tr>
+<td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+<table class="mjml-logo-table" border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;border-spacing:0px;"><tbody><tr>
+<td style="width:200px;"><a href="https://example.org" target="_blank"><img alt="Logo" height="auto" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" style="border:0;display:block;height:auto;width:100%;" width="200"></a></td>
+</tr></tbody></table>
+</td></tr></tbody></table>
+</div>`;
+  editor.setData(mjmlHeadFragment);
+  const mjmlOut = editor.getData();
+  check(mjmlOut.includes('<title></title>'), 'MJML head fragment preserves <title>');
+  check(mjmlOut.includes('http-equiv="Content-Type"'), 'MJML head fragment preserves <meta>');
+  check(mjmlOut.includes('<!--[if mso]>'), 'MJML head fragment preserves MSO conditional comments');
+  check(!/<(?:!doctype|html|head|body)\b/i.test(mjmlOut), 'MJML head fragment does not add synthetic <html>/<body> tags');
+  const mjmlParsed = parse(mjmlOut);
+  const mjmlLogoTable = mjmlParsed.querySelector('table.mjml-logo-table');
+  check(mjmlLogoTable && mjmlLogoTable.style.marginLeft === 'auto' && mjmlLogoTable.style.marginRight === 'auto', 'MJML nested logo table inside <td align="center"> stays centered');
+  check(!mjmlParsed.querySelector('figure.image'), 'MJML logo with display:block is not wrapped in figure.image');
+  const fragment = `<style type="text/css">.mail-fragment{color:#123456}</style>
+    <table class="mail-fragment" role="presentation"><tbody><tr><td class="fragment-logo">
+    <figure class="image image_resized" style="width:100%"><a href="https://example.org"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="Fragment logo" width="200"></a></figure>
+    </td></tr></tbody></table>`;
+  editor.setData(fragment);
+  const fragmentHtml = editor.getData();
+  check(!/<(?:!doctype|html|head|body)\b/i.test(fragmentHtml), 'fragment: remains a fragment without document envelope');
+  const fragmentOutput = parse(fragmentHtml);
+  const fragmentCell = fragmentOutput.querySelector('td.fragment-logo');
+  check(fragmentOutput.querySelector('style.mail-fragment') || fragmentOutput.querySelector('style'), 'fragment: stylesheet preserved');
+  check(fragmentCell.style.textAlign === 'center', 'fragment: previously saved CKEditor image regains centering');
+  check(fragmentCell.querySelector('span img') && !fragmentCell.querySelector('figure.image'), 'fragment: previously saved CKEditor image becomes inline');
+  editor.setData('<p>Image: </p>');
+  const imageParagraph = Array.from(editor.model.createRangeIn(editor.model.document.getRoot()).getItems())
+    .find(item => item.is('element', 'paragraph'));
+  editor.model.change(writer => writer.setSelection(imageParagraph, 'end'));
+  editor.execute('imageInsert', {source: 'data:image/gif;base64,R0lGODlhAQABAAAAACw='});
+  const inlineImage = Array.from(editor.model.createRangeIn(editor.model.document.getRoot()).getItems())
+    .find(item => item.is('element', 'imageInline'));
+  editor.model.change(writer => {
+    writer.setAttribute('width', 1808, inlineImage);
+    writer.setAttribute('height', 2973, inlineImage);
+    writer.setAttribute('resizedWidth', '402px', inlineImage);
+  });
+  const insertedImage = parse(editor.getData());
+  const exportedImage = insertedImage.querySelector('p > img');
+  check(!insertedImage.querySelector('figure.image'), 'CiviMail image insertion avoids figure markup');
+  check(exportedImage, 'CiviMail image insertion exports a direct inline image');
+  check(exportedImage.style.width === '402px', 'CiviMail image resize exports a pixel width');
+  check(exportedImage.style.height === 'auto', 'CiviMail image resize keeps its aspect ratio');
+  check(exportedImage.style.maxWidth === '100%', 'CiviMail image resize remains responsive');
+  check(exportedImage.getAttribute('width') === '402', 'CiviMail image resize exports its display width');
+  check(exportedImage.getAttribute('height') === '661', 'CiviMail image resize exports a proportional height');
+  check(exportedImage.getAttribute('border') === '0', 'CiviMail image avoids legacy email borders');
+  editor.setData('<p><span style="font-family:CustomFont;font-size:19px;color:#123456">Custom typography</span></p>');
+  check(editor.getData().includes('CustomFont') && editor.getData().includes('19px'), 'unlisted font and size preserved');
+  check(!editor.getData().includes('@media'), 'styles do not leak into the next document');
+  const backgroundUrl = new URL('../images/enable.png', location.href).href;
+  editor.setData('<table background="' + backgroundUrl + '"><tr><td>Background</td></tr></table>');
+  check(parse(editor.getData()).querySelector('table').getAttribute('background') === backgroundUrl, 'legacy HTTP(S) table background preserved');
+  editor.setData('<table background="javascript:bad()"><tr><td>Background</td></tr></table>');
+  check(!parse(editor.getData()).querySelector('table').hasAttribute('background'), 'executable legacy background rejected');
+  window.presentationAttackExecuted = false;
+  editor.setData('<p onclick="window.presentationAttackExecuted=true" ng-click="bad()">Safe</p><script>window.presentationAttackExecuted=true</' + 'script><iframe srcdoc="bad"></iframe>');
+  const clean = parse(editor.getData());
+  check(!clean.querySelector('script,iframe,[onclick],[ng-click]'), 'executable elements and attributes excluded');
+  check(!window.presentationAttackExecuted, 'script did not execute');
+  editor.setData(source);
+  editor.execute('toggleFullscreen');
+  const fsEditableWrapper = document.querySelector('.ck-fullscreen__main-wrapper .ck-fullscreen__editable');
+  const fsEditable = document.querySelector('.ck-fullscreen__main-wrapper .ck-fullscreen__editable > .ck.ck-editor__editable');
+  check(fsEditableWrapper && fsEditableWrapper.classList.contains('crm-container'), 'fullscreen wrapper receives crm-container class');
+  check(!document.querySelector('.ck-fullscreen__main-wrapper').classList.contains('crm-container'), 'outer fullscreen wrapper is not polluted with crm-container');
+  const fsComputed = window.getComputedStyle(fsEditable);
+  check(fsComputed.color === 'rgb(0, 0, 0)' && fsComputed.backgroundColor === 'rgb(255, 255, 255)', 'fullscreen editable preserves black text on white background');
+  editor.execute('toggleFullscreen');
+  window.presentationTest = {passed: true, checks};
+  document.querySelector('#result').textContent = 'PASS: ' + checks.length + ' checks';
+})().catch(error => {
+  window.presentationTest = {passed: false, error: error.message};
+  document.querySelector('#result').textContent = 'FAIL: ' + error.message;
+});
+</script>
+</html>
