@@ -23,19 +23,22 @@ class CRM_Ckeditor5_Form_Presets extends CRM_Core_Form {
     Civi::resources()->addScriptFile('ckeditor5', 'js/admin-preset-config.js', 5, 'html-header')
       ->addScriptFile('ckeditor5', 'js/admin-presets.js', 10, 'html-header')
       ->addStyleFile('ckeditor5', 'css/admin-presets.css', 0, 'html-header')
-      ->addVars('ckeditor5Admin', ['buttons' => CRM_Ckeditor5_Presets::buttons()]);
+      ->addVars('ckeditor5Admin', [
+        'buttons' => CRM_Ckeditor5_Presets::buttons(),
+        'buttonLabels' => $this->buttonLabels(),
+      ]);
   }
 
   public function buildQuickForm() {
-    foreach (['toolbar' => 'Customize toolbar', 'find_replace' => 'Customize find and replace', 'fullscreen' => 'Customize fullscreen mode', 'table_layout' => 'Customize layout tables', 'html_ruleset' => 'Customize HTML ruleset', 'upload_mode' => 'Customize image upload mode', 'qa' => 'Customize HTML QA mode', 'fonts' => 'Customize font families', 'headings' => 'Customize headings', 'sizes' => 'Customize font sizes', 'palette' => 'Customize colors', 'styles' => 'Customize named styles'] as $key => $label) {
+    foreach (['toolbar' => 'Use a custom toolbar for this preset', 'find_replace' => 'Use custom find and replace settings', 'fullscreen' => 'Use custom fullscreen settings', 'table_layout' => 'Use custom table settings', 'html_ruleset' => 'Use custom HTML preservation rules', 'upload_mode' => 'Use a custom image mode', 'qa' => 'Use custom HTML QA settings', 'fonts' => 'Use custom font families', 'headings' => 'Use custom headings', 'sizes' => 'Use custom font sizes', 'palette' => 'Use custom colors', 'styles' => 'Use custom named styles'] as $key => $label) {
       $this->add('checkbox', 'custom_' . $key, E::ts($label));
     }
     $this->add('select', 'find_replace_ui', E::ts('Find and replace interface'), [
       'dialog' => E::ts('Dialog'),
       'dropdown' => E::ts('Toolbar dropdown'),
     ]);
-    $this->add('checkbox', 'fullscreen_menu_bar', E::ts('Show the menu bar in fullscreen mode'));
-    $this->add('checkbox', 'fullscreen_ungrouped_toolbar', E::ts('Keep every toolbar item visible in fullscreen mode'));
+    $this->add('checkbox', 'fullscreen_menu_bar', E::ts('Display the CKEditor menu bar in fullscreen mode'));
+    $this->add('checkbox', 'fullscreen_ungrouped_toolbar', E::ts('Wrap the toolbar onto multiple rows instead of hiding buttons in an overflow menu'));
     $this->add('select', 'external_table_type', E::ts('Tables without an explicit type'), [
       'auto' => E::ts('Detect automatically'),
       'content' => E::ts('Content table'),
@@ -61,6 +64,51 @@ class CRM_Ckeditor5_Form_Presets extends CRM_Core_Form {
     $this->add('textarea', 'styles', E::ts('Named styles'), ['rows' => 6, 'cols' => 70]);
     $this->addFormRule([__CLASS__, 'validateConfig']);
     $this->addButtons([['type' => 'next', 'name' => E::ts('Save'), 'isDefault' => TRUE], ['type' => 'cancel', 'name' => E::ts('Cancel')]]);
+  }
+
+  private function buttonLabels() {
+    $labels = [
+      'heading' => 'Headings',
+      '|' => 'Separator',
+      'findAndReplace' => 'Find and replace',
+      'civiTokens' => 'CiviCRM tokens',
+      'bold' => 'Bold',
+      'underline' => 'Underline',
+      'italic' => 'Italic',
+      'strikethrough' => 'Strikethrough',
+      'superscript' => 'Superscript',
+      'subscript' => 'Subscript',
+      'highlight' => 'Highlight',
+      'removeFormat' => 'Remove formatting',
+      'specialCharacters' => 'Special characters',
+      'fontFamily' => 'Font family',
+      'fontColor' => 'Text color',
+      'fontBackgroundColor' => 'Text background color',
+      'fontSize' => 'Font size',
+      'bulletedList' => 'Bulleted list',
+      'numberedList' => 'Numbered list',
+      'indent' => 'Increase indent',
+      'outdent' => 'Decrease indent',
+      'alignment' => 'Text alignment',
+      'link' => 'Link',
+      'imageUpload' => 'Upload image',
+      'civiFileManager' => 'Browse server files',
+      'blockQuote' => 'Block quote',
+      'insertTable' => 'Insert table',
+      'insertTableLayout' => 'Insert layout table',
+      'tableType' => 'Change table type',
+      'horizontalLine' => 'Horizontal line',
+      'mediaEmbed' => 'Embed media',
+      'undo' => 'Undo',
+      'redo' => 'Redo',
+      'pageBreak' => 'Page break',
+      'htmlEmbed' => 'HTML block',
+      'sourceEditing' => 'HTML source',
+      'code' => 'Inline code',
+      'style' => 'Named styles',
+      'fullscreen' => 'Fullscreen',
+    ];
+    return array_map([E::class, 'ts'], $labels);
   }
 
   public function setDefaultValues() {

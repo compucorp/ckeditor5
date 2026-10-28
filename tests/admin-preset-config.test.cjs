@@ -13,6 +13,17 @@ test('preview parser initializes separately from CiviCRM addVars data', () => {
   assert.deepEqual(JSON.parse(JSON.stringify(config)), {toolbar: {items: buttons}});
 });
 
+test('toolbar customization starts from the effective inherited toolbar', () => {
+  const CRM = {ckeditor5Admin: {}};
+  vm.runInNewContext(fs.readFileSync(`${__dirname}/../js/admin-preset-config.js`, 'utf8'), {CRM});
+  const config = {toolbar: {items: ['heading', '|', 'bold', 'imageUpload']}};
+  const items = CRM.ckeditor5Admin.copyToolbarItems(config);
+  assert.deepEqual(JSON.parse(JSON.stringify(items)), ['heading', '|', 'bold', 'imageUpload']);
+  items.pop();
+  assert.deepEqual(config.toolbar.items, ['heading', '|', 'bold', 'imageUpload']);
+  assert.equal(CRM.ckeditor5Admin.copyToolbarItems({}), null);
+});
+
 test('toolbar picker reads the button catalogue exported by addVars', () => {
   const appended = [];
   const rendered = new Error('Picker initialized');
@@ -38,9 +49,12 @@ test('toolbar picker reads the button catalogue exported by addVars', () => {
     };
     throw new Error('Unexpected DOM operation');
   };
-  const CRM = {$, ts: () => text => text, vars: {ckeditor5Admin: {buttons: ['bold', '|']}}};
+  const CRM = {$, ts: () => text => text, vars: {ckeditor5Admin: {
+    buttons: ['bold', '|'],
+    buttonLabels: {bold: 'Bold', '|': 'Separator'}
+  }}};
   assert.throws(() => vm.runInNewContext(fs.readFileSync(`${__dirname}/../js/admin-presets.js`, 'utf8'), {CRM}), error => error === rendered);
-  assert.deepEqual(appended, [['bold', 'bold'], ['|', 'Separator']]);
+  assert.deepEqual(appended, [['bold', 'Bold'], ['|', 'Separator']]);
 });
 
 test('feature options produce nested CKEditor configuration', () => {
