@@ -32,8 +32,8 @@ function harness(settings = {}, listener = () => {}, browser = {}) {
   if (browser.DOMParser) context.DOMParser = browser.DOMParser;
   if (browser.document) context.document = browser.document;
   vm.runInNewContext(fs.readFileSync(`${__dirname}/../js/wysiwyg/crm.ckeditor5.js`, 'utf8'), context);
-  const create = preset => {
-    CRM.wysiwyg._create({preset});
+  const create = (preset, properties = {}) => {
+    CRM.wysiwyg._create({...properties, preset});
     return created.at(-1);
   };
   create.CRM = CRM;
@@ -95,8 +95,8 @@ for (const useElFinder of [false, true]) {
     });
     const config = create('civimail').config;
     assert.deepEqual(plain(config.removePlugins), useElFinder
-      ? ['MediaEmbed', 'Base64UploadAdapter'] : ['MediaEmbed', 'CKFinder', 'CKFinderUploadAdapter']);
-    assert.deepEqual(plain(config.toolbar), useElFinder ? ['bold', 'ckfinder'] : ['bold']);
+      ? ['MediaEmbed', 'Base64UploadAdapter'] : ['MediaEmbed']);
+    assert.deepEqual(plain(config.toolbar), useElFinder ? ['bold', 'civiFileManager'] : ['bold']);
   });
 }
 
@@ -117,7 +117,24 @@ test('saved presets inherit and code configuration retains precedence', () => {
 test('the file manager button is omitted from the Base64 toolbar', () => {
   const settings = {CKEditor5AdminPresets: {default: {toolbar: {items: ['bold', 'ckfinder']}}}};
   assert.deepEqual(plain(harness(settings)().config.toolbar.items), ['bold']);
-  assert.deepEqual(plain(harness({...settings, ELFinderLocation: '/elfinder.js'})().config.toolbar.items), ['bold', 'ckfinder']);
+  assert.deepEqual(plain(harness({...settings, ELFinderLocation: '/elfinder.js'})().config.toolbar.items), ['bold', 'civiFileManager']);
+});
+
+test('front-end and Form Builder fields use restricted fallbacks unless a preset is explicit', () => {
+  const frontend = harness({isFrontend: true, ELFinderLocation: '/elfinder.js', CKEditor5UploadMode: 'elfinder'});
+  const publicField = frontend();
+  assert.equal(publicField.context.preset, 'frontend');
+  assert.equal(publicField.context.uploadAdapter, 'none');
+  assert.equal(publicField.config.civiHtmlRuleset, 'strict');
+  assert.ok(!publicField.config.toolbar.items.includes('imageUpload'));
+
+  const formBuilder = frontend(undefined, {closest: selector => selector === 'civi-rich-text-input' ? {} : null});
+  assert.equal(formBuilder.context.preset, 'formbuilder');
+  assert.equal(formBuilder.context.uploadAdapter, 'none');
+
+  const event = frontend('civievent');
+  assert.equal(event.context.preset, 'civievent');
+  assert.equal(event.context.uploadAdapter, 'elfinder');
 });
 
 test('validated Base64 uploads enforce the 10 MiB hard limit', async () => {
@@ -361,17 +378,16 @@ test('named HTML rulesets configure General HTML Support and template style pres
   assert.equal(mail.civiPreserveTemplateStyles, true);
 });
 
-test('upload mode disables imageUpload and ckfinder when unprivileged or restricted by preset', () => {
+test('upload mode disables imageUpload and the CiviCRM file manager when unprivileged or restricted by preset', () => {
   const unprivileged = harness({
     ELFinderLocation: null,
     CKEditor5UploadMode: 'none'
   })('default');
   assert.equal(unprivileged.context.uploadAdapter, 'none');
   assert.ok(!unprivileged.config.toolbar.items.includes('imageUpload'));
-  assert.ok(!unprivileged.config.toolbar.items.includes('ckfinder'));
+  assert.ok(!unprivileged.config.toolbar.items.includes('civiFileManager'));
   assert.ok(unprivileged.config.removePlugins.includes('ImageUpload'));
   assert.ok(unprivileged.config.removePlugins.includes('Base64UploadAdapter'));
-  assert.ok(unprivileged.config.removePlugins.includes('CKFinder'));
 
   const restrictedPreset = harness({
     ELFinderLocation: '/elfinder.js',
@@ -384,13 +400,13 @@ test('upload mode disables imageUpload and ckfinder when unprivileged or restric
   const formEditor = restrictedPreset('default');
   assert.equal(formEditor.context.uploadAdapter, 'none');
   assert.ok(!formEditor.config.toolbar.items.includes('imageUpload'));
-  assert.ok(!formEditor.config.toolbar.items.includes('ckfinder'));
+  assert.ok(!formEditor.config.toolbar.items.includes('civiFileManager'));
   assert.ok(formEditor.config.removePlugins.includes('ImageUpload'));
 
   const mailEditor = restrictedPreset('civimail');
   assert.equal(mailEditor.context.uploadAdapter, 'elfinder');
   assert.ok(mailEditor.config.toolbar.items.includes('imageUpload'));
-  assert.ok(mailEditor.config.toolbar.items.includes('ckfinder'));
+  assert.ok(mailEditor.config.toolbar.items.includes('civiFileManager'));
   assert.ok(!mailEditor.config.removePlugins.includes('ImageUpload'));
 });
 

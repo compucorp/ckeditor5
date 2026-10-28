@@ -3,16 +3,18 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-function runtime(settings = {}, onLoadScript = () => {}) {
+function runtime(settings = {}, onLoadScript = () => {}, options = {}) {
   const created = [];
   const rejected = [];
   const loadedStylesheets = [];
+  const existingStylesheets = options.existingStylesheets || [];
   const $ = item => ({
     0: item,
     length: 1,
     attr: name => name === 'data-preset' ? item.preset : undefined,
     hasClass: () => false,
     addClass() { return this; },
+    removeClass() { return this; },
     trigger() {}
   });
   $.Deferred = () => ({resolve() {}, reject(error) { rejected.push(error); }});
@@ -25,16 +27,17 @@ function runtime(settings = {}, onLoadScript = () => {}) {
   }};
   const window = {
     ClassicEditor,
-    CKEDITOR_VERSION: '49.0.0',
-    CKEDITOR: {version: '49.0.0'},
+    CKEDITOR_VERSION: '49.0.1',
+    CKEDITOR: {version: '49.0.1'},
     location: {href: 'https://example.test/civicrm', origin: 'https://example.test'}
   };
   const document = {
-    querySelectorAll() { return []; },
+    querySelectorAll() { return existingStylesheets.map(href => ({href})); },
     createElement() { return {dataset: {}}; },
     head: {appendChild(link) {
       loadedStylesheets.push(link.href);
-      setImmediate(link.onload);
+      if (options.failStylesheet === link.href) setImmediate(link.onerror);
+      else setImmediate(link.onload);
     }}
   };
   const CRM = {$, _: {}, wysiwyg: {}, config: {locale: 'en_US', ...settings}};
@@ -56,8 +59,8 @@ test('registered plugins are added to each editor configuration once', () => {
   const {CRM} = runtime();
   class ExternalPlugin {}
   Object.defineProperty(ExternalPlugin, 'pluginName', {value: 'ExternalPlugin'});
-  CRM.ckeditor5.registerPlugin('ExternalPlugin', ExternalPlugin, {ckeditorVersion: '49.0.0'});
-  CRM.ckeditor5.registerPlugin('ExternalPlugin', ExternalPlugin, {ckeditorVersion: '49.0.0'});
+  CRM.ckeditor5.registerPlugin('ExternalPlugin', ExternalPlugin, {ckeditorVersion: '49.0.1'});
+  CRM.ckeditor5.registerPlugin('ExternalPlugin', ExternalPlugin, {ckeditorVersion: '49.0.1'});
   const config = CRM.wysiwyg.getConfig({preset: 'default'}, false);
   assert.equal(config.extraPlugins.filter(plugin => plugin === ExternalPlugin).length, 1);
   assert.equal(CRM.ckeditor5.getRegisteredPlugins().ExternalPlugin, ExternalPlugin);
@@ -72,11 +75,11 @@ test('registration rejects incompatible and ambiguous plugins', () => {
   );
   assert.throws(
     () => CRM.ckeditor5.registerPlugin('Plugin', Plugin, {ckeditorVersion: '48.0.0'}),
-    /targets 48\.0\.0; the shared runtime is 49\.0\.0/
+    /targets 48\.0\.0; the shared runtime is 49\.0\.1/
   );
-  CRM.ckeditor5.registerPlugin('Plugin', Plugin, {ckeditorVersion: '49.0.0'});
+  CRM.ckeditor5.registerPlugin('Plugin', Plugin, {ckeditorVersion: '49.0.1'});
   assert.throws(
-    () => CRM.ckeditor5.registerPlugin('Plugin', class OtherPlugin {}, {ckeditorVersion: '49.0.0'}),
+    () => CRM.ckeditor5.registerPlugin('Plugin', class OtherPlugin {}, {ckeditorVersion: '49.0.1'}),
     /already registered/
   );
 });
@@ -86,7 +89,7 @@ test('registration rejects a constructor with a conflicting pluginName', () => {
   class Plugin {}
   Object.defineProperty(Plugin, 'pluginName', {value: 'ActualName'});
   assert.throws(
-    () => CRM.ckeditor5.registerPlugin('ConfiguredName', Plugin, {ckeditorVersion: '49.0.0'}),
+    () => CRM.ckeditor5.registerPlugin('ConfiguredName', Plugin, {ckeditorVersion: '49.0.1'}),
     /plugin name mismatch/
   );
 });
@@ -105,7 +108,7 @@ test('local plugin assets load once before multiple editors initialize', async (
     loadedScripts.push(url);
     Plugin = class ExternalPlugin {};
     Object.defineProperty(Plugin, 'pluginName', {value: 'ExternalPlugin'});
-    runtimeCRM.ckeditor5.registerPlugin('ExternalPlugin', Plugin, {ckeditorVersion: '49.0.0'});
+    runtimeCRM.ckeditor5.registerPlugin('ExternalPlugin', Plugin, {ckeditorVersion: '49.0.1'});
   });
 
   CRM.wysiwyg._create({preset: 'default'});
@@ -120,6 +123,58 @@ test('local plugin assets load once before multiple editors initialize', async (
   assert.deepEqual(rejected, []);
 });
 
+test('late editor initialization loads integration styles once and deduplicates existing links', async () => {
+  const {CRM, created, rejected, loadedStylesheets} = runtime({
+    CKEditor5Stylesheets: ['/assets/ckeditor.css', '/assets/existing.css'],
+    ELFinderLocation: '/assets/elfinder.js',
+    ELFinderStylesheets: ['/assets/elfinder.css', '/assets/ckeditor.css']
+  }, () => {}, {
+    existingStylesheets: ['https://example.test/assets/existing.css']
+  });
+
+  CRM.wysiwyg._create({preset: 'default'});
+  await new Promise(resolve => setImmediate(resolve));
+  CRM.wysiwyg._create({preset: 'civimail'});
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.deepEqual(loadedStylesheets, [
+    'https://example.test/assets/ckeditor.css',
+    'https://example.test/assets/elfinder.css'
+  ]);
+  assert.equal(created.length, 2);
+  assert.deepEqual(rejected, []);
+});
+
+test('Base64 mode never loads elFinder styles', async () => {
+  const {CRM, created, rejected, loadedStylesheets} = runtime({
+    CKEditor5Stylesheets: ['/assets/ckeditor.css'],
+    ELFinderLocation: null,
+    ELFinderStylesheets: ['/assets/elfinder.css']
+  });
+
+  CRM.wysiwyg._create({preset: 'default'});
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.deepEqual(loadedStylesheets, ['https://example.test/assets/ckeditor.css']);
+  assert.equal(created.length, 1);
+  assert.deepEqual(rejected, []);
+});
+
+test('stylesheet failure rejects initialization and leaves the editor uncreated', async () => {
+  const {CRM, created, rejected} = runtime({
+    CKEditor5Stylesheets: ['/assets/missing.css']
+  }, () => {}, {
+    failStylesheet: 'https://example.test/assets/missing.css'
+  });
+
+  CRM.wysiwyg._create({preset: 'default'});
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.equal(created.length, 0);
+  assert.equal(rejected.length, 1);
+  assert.match(rejected[0].message, /Unable to load CKEditor 5 stylesheet/);
+});
+
 test('core and extension plugin assets load together', async () => {
   const loadedScripts = [];
   const {CRM, created, rejected} = runtime({
@@ -130,7 +185,7 @@ test('core and extension plugin assets load together', async () => {
     const name = url.endsWith('/core.js') ? 'CorePlugin' : 'ExtensionPlugin';
     class Plugin {}
     Object.defineProperty(Plugin, 'pluginName', {value: name});
-    runtimeCRM.ckeditor5.registerPlugin(name, Plugin, {ckeditorVersion: '49.0.0'});
+    runtimeCRM.ckeditor5.registerPlugin(name, Plugin, {ckeditorVersion: '49.0.1'});
   });
 
   CRM.wysiwyg._create({preset: 'default'});

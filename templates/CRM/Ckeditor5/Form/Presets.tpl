@@ -6,6 +6,12 @@
   </nav>
   <p>{ts}Unchecked sections inherit the default preset. In the default preset, they retain the editor defaults. Check a section to replace its values. Uncheck all sections and save to reset this preset.{/ts}</p>
   <p class="description">{ts}Extensions may override these settings. Hiding a button does not filter pasted HTML or change permissions.{/ts}</p>
+  <fieldset id="ck5-preview" data-preset="{$preset|escape}">
+    <legend>{ts}Live editor preview{/ts}</legend>
+    <p>{ts}Unsaved settings are previewed here. This sample is never saved. Configuration changes reset the sample. Upload and file manager commands are disabled in the preview. Extensions can override your settings.{/ts}</p>
+    <p id="ck5-preview-status" role="status" aria-live="polite"></p>
+    <div id="ck5-preview-editor"></div>
+  </fieldset>
   <fieldset>
     <legend>{ts}Toolbar{/ts}</legend>
     {$form.custom_toolbar.html} {$form.custom_toolbar.label}
@@ -106,12 +112,6 @@
       <p class="description">{ts}One style per line: Name | element | class-one class-two. Supported elements: p, h2, h3, h4, span, div, blockquote, table, td, th. Example: Lead paragraph | p | lead.{/ts}</p>
       <p class="description">{ts}Add the style button to the toolbar to select these styles. CSS must be supplied separately by your theme or extension, both in the editor and in the output. This page does not inline CSS for email or guarantee newsletter HTML preservation. An empty list removes inherited named styles.{/ts}</p>
     </div>
-  </fieldset>
-  <fieldset id="ck5-preview" data-preset="{$preset|escape}">
-    <legend>{ts}Live editor preview{/ts}</legend>
-    <p>{ts}Unsaved settings are previewed here. This sample is never saved. Configuration changes reset the sample. Upload and file manager commands are disabled in the preview. Extensions can override your settings.{/ts}</p>
-    <p id="ck5-preview-status" role="status" aria-live="polite"></p>
-    <div id="ck5-preview-editor"></div>
   </fieldset>
   <div class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="bottom"}</div>
 </div>

@@ -39,6 +39,11 @@ check($config['table']['tableCellProperties']['backgroundColors'] === $config['f
 check($config['style']['definitions'][0]['classes'] === ['lead', 'brand'], 'Style classes must survive.');
 check(CRM_Ckeditor5_Presets::parse(['custom_styles' => 1, 'styles' => '']) === ['style' => ['definitions' => []]], 'Empty styles must clear inheritance.');
 check(CRM_Ckeditor5_Presets::parse(['custom_toolbar' => 1, 'toolbar_items' => '[]']) === ['toolbar' => ['items' => []]], 'An empty toolbar must be supported.');
+check(
+  CRM_Ckeditor5_Presets::parse(['custom_toolbar' => 1, 'toolbar_items' => '["imageUpload","ckfinder"]'])
+    === ['toolbar' => ['items' => ['imageUpload', 'civiFileManager']]],
+  'Legacy CKFinder toolbar entries must migrate to the CiviCRM file manager.'
+);
 
 $invalid = [
   ['custom_toolbar' => 1, 'toolbar_items' => '["unknown"]'],

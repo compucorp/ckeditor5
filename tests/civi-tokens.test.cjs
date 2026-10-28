@@ -28,7 +28,7 @@ function loadPlugin() {
     }
   };
   CRM.$.getJSON = () => {};
-  const CKEDITOR = {Plugin, ButtonView, version: '49.0.0'};
+  const CKEDITOR = {Plugin, ButtonView, version: '49.0.1'};
   vm.runInNewContext(fs.readFileSync(`${__dirname}/../js/plugins/civi-tokens.js`, 'utf8'), {
     CRM,
     window: {CKEDITOR},
@@ -55,7 +55,7 @@ test('the token plugin registers against the shared CKEditor runtime', () => {
   const {registration, component} = loadPlugin();
   assert.equal(registration.name, 'CiviTokens');
   assert.equal(registration.constructor.pluginName, 'CiviTokens');
-  assert.equal(registration.metadata.ckeditorVersion, '49.0.0');
+  assert.equal(registration.metadata.ckeditorVersion, '49.0.1');
   assert.equal(component.name, 'civiTokens');
   const button = component.factory('en');
   assert.equal(button.label, 'Tokens');
@@ -135,7 +135,7 @@ test('inline autocomplete does not spam network requests on failure or empty res
       }
     };
   };
-  const CKEDITOR = {Plugin, ButtonView, version: '49.0.0'};
+  const CKEDITOR = {Plugin, ButtonView, version: '49.0.1'};
   const document = {
     body: {appendChild() {}},
     createElement: () => ({

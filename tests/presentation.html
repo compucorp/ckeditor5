@@ -155,7 +155,7 @@ window.CRM = {$, ts, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
   editor.setData('<table background="javascript:bad()"><tr><td>Background</td></tr></table>');
   check(!parse(editor.getData()).querySelector('table').hasAttribute('background'), 'executable legacy background rejected');
   window.presentationAttackExecuted = false;
-  editor.setData('<p onclick="window.presentationAttackExecuted=true" ng-click="bad()">Safe</p><script>window.presentationAttackExecuted=true</' + 'script><iframe srcdoc="bad"></iframe>');
+  editor.setData('<p onclick="window.presentationAttackExecuted=true" ng-click="bad()">Safe</p><scr' + 'ipt>window.presentationAttackExecuted=true</scr' + 'ipt><iframe srcdoc="bad"></iframe>');
   const clean = parse(editor.getData());
   check(!clean.querySelector('script,iframe,[onclick],[ng-click]'), 'executable elements and attributes excluded');
   check(!window.presentationAttackExecuted, 'script did not execute');

@@ -10,6 +10,8 @@ class CRM_Ckeditor5_Form_Presets extends CRM_Core_Form {
   public function preProcess() {
     $presets = CRM_Core_OptionGroup::values('wysiwyg_presets', FALSE, FALSE, FALSE, NULL, 'label', TRUE, FALSE, 'name');
     $presets = ['default' => E::ts('Default')] + $presets;
+    $presets['frontend'] = E::ts('Front-end forms');
+    $presets['formbuilder'] = E::ts('Form Builder');
     $preset = CRM_Utils_Request::retrieve('preset', 'String', $this, FALSE, 'default', 'GET');
     if (!isset($presets[$preset])) {
       CRM_Core_Error::statusBounce(E::ts('Unknown editor preset.'));

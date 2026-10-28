@@ -22,7 +22,7 @@ window.CRM = {$, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
 <script>
 (async function () {
   const check = (condition, message) => { if (!condition) throw new Error(message); };
-  check(window.CKEDITOR_VERSION === '49.0.0', 'Unexpected CKEditor runtime version');
+  check(window.CKEDITOR_VERSION === '49.0.1', 'Unexpected CKEditor runtime version');
   check(window.CKEDITOR && window.CKEDITOR.Plugin, 'Shared CKEditor runtime API is missing');
   class ExternalSmokePlugin extends window.CKEDITOR.Plugin {
     static get pluginName() {
@@ -37,8 +37,8 @@ window.CRM = {$, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
     ...CRM.wysiwyg.getConfig(base64Element, false), attachTo: base64Element
   });
   check(base64.plugins.has('Base64UploadAdapter'), 'Base64 adapter missing');
-  check(!base64.plugins.has('CKFinder'), 'File manager must be disabled');
-  check(!base64.plugins.has('CKFinderUploadAdapter'), 'Conflicting upload adapter');
+  check(base64.plugins.has('CiviFileManager'), 'CiviCRM file manager plugin missing');
+  check(!base64.config.get('toolbar.items').includes('civiFileManager'), 'File manager button must be disabled');
   const repository = base64.plugins.get('FileRepository');
   repository.createUploadAdapter = CRM.ckeditor5.createValidatedBase64UploadAdapter;
   const imageBlob = await new Promise(resolve => {
@@ -80,8 +80,8 @@ window.CRM = {$, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
     ...CRM.wysiwyg.getConfig(elfinderElement, true), attachTo: elfinderElement
   });
   check(!elfinder.plugins.has('Base64UploadAdapter'), 'Base64 must be disabled');
-  check(elfinder.plugins.has('CKFinder'), 'File manager integration missing');
-  check(Boolean(elfinder.commands.get('ckfinder')), 'File manager command missing');
+  check(elfinder.plugins.has('CiviFileManager'), 'File manager integration missing');
+  check(elfinder.config.get('toolbar.items').includes('civiFileManager'), 'File manager button missing');
   // Presentation preservation uses email-compatible tables without a figure.
   const source = '<h2>Title</h2><p><strong>Bold</strong> <span style="color:#0000ff;">Blue</span></p><table><tbody><tr><td style="background-color:#ff0000;">Cell</td></tr></tbody></table>';
   const expected = source.replace('<table>', '<table class="table content-table">');

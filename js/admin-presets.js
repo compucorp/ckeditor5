@@ -171,7 +171,7 @@
           editor = await window.ClassicEditor.create({...config, attachTo: preview[0]});
           CRM.ckeditor5.attachHtmlQaReport(editor, sourceHtml);
           editor.ui.view.element.setAttribute('data-ckeditor5-preset', preset);
-          ['uploadImage', 'imageUpload', 'ckfinder'].forEach(name => {
+          ['uploadImage', 'imageUpload'].forEach(name => {
             const command = editor.commands.get(name);
             if (command) command.forceDisabled('adminPreview');
           });
