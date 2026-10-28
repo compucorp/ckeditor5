@@ -4,45 +4,41 @@
 
 ![Screenshot](images/screenshot.png)
 
-This adds ckeditor5 as a usable Wysiwig in CiviCRM. Ckeditor5 is being actively developed while CkEditor4 is in LTS stage so it
-makes more sense to invest time in ckeditor5 than ckeditor4. However both have gaps.
-                                                    
-Ckeditor5 is better than
-ckeditor4 when it comes to inserting formatted text from word / google (note
-that you no longer see the paste from Word button as you just paste).
+This extension provides CKEditor 5 as a CiviCRM WYSIWYG editor. CKEditor 5 is
+actively maintained and handles formatted content pasted from Word and Google
+Docs without a separate paste button.
 
-Also note ckeditor5 always uses an expandable window so the field will be small if it has
-no data.
+The integration uses one self-hosted editor build and offers elFinder, embedded
+Base64 images, or no uploads as per-preset choices. It does not depend on the
+KCFinder integration historically used by CKEditor 4.
 
-This implementation gets away from  the kcfinder file manager  which was last  updated
-in 2014. KcFinder was  brittle around paths - especially  for sites with non-standard layouts
-like symlinks or Drupal8.
+The extension registers one **CKEditor 5** editor. Administrators can choose an
+image-upload mode for each preset:
 
-Currently the packaged version comes with 2 options:
+* **elFinder** stores uploaded files on the filesystem and provides a server
+  file manager. This is the recommended mode for publicly reachable sites.
+* **Base64** embeds uploaded images in the HTML. This can be useful for a site
+  behind a firewall, where recipients could not load an image URL hosted by the
+  site. It also increases the stored HTML and database size.
+* **None** disables image upload and file browsing for the preset.
 
-* CKEditor5 with uploaded images (recommended) - works in the same way as
-  ckeditor4 did, by storing the files on the filesystem. It uses the elfinder
-  plugin (eventually we could add support for other storage backends).
-* CKEditor5 with embedded images - useful for sites operating behind a firewall
-  as it embeds any uploaded images into the html (as a base64 blob), meaning
-  that images embedded in emails will not be inaccessible to the recipients.
-  For example a user who is sending an email from CiviCRM from behind a firewall
-  who wants to add a signature cannot use the traditional ckeditor4 image insert
-  because the image will be located behind the firewall and inaccessible to the
-  reader. By embedding it it will be available. However, this can have an impact
-  on the size of the database.
+Existing installations using the historical `CKEditor5-elfinder` or
+`CKEditor5-base64` choices are migrated to the single editor while retaining
+their selected upload behavior.
 
 Note - there are discrepancies between email clients and some
 might suppress or mis-display embedded images, as some might suppress linked ones.
 
 The extension is licensed under [AGPL-3.0](LICENSE.txt).
+Security maintenance and the applicability of reviewed upstream advisories are
+documented in [SECURITY.md](SECURITY.md).
 
 ## Requirements
 
 * CiviCRM **6.16 or later**, as declared in `info.xml`.
-* PHP **8.1.2 or later**, compatible with the installed CiviCRM and CMS versions.
-  This is the minimum required by [CiviCRM 6.16](https://github.com/civicrm/civicrm-core/blob/6.16.0/composer.json).
-  Later CiviCRM or CMS versions may require a newer PHP version.
+* PHP **8.2 or later**, compatible with the installed CiviCRM and CMS versions.
+  The release metadata lists PHP 8.2 through 8.5.
+* Smarty **5**.
 * For elFinder uploads, a writable CiviCRM image directory and a public image URL
   accessible to recipients when images are used in email.
 
@@ -83,9 +79,12 @@ Administer->Customize Data and Screens->Display Preferences
 ### Per-field presets
 
 The adapter reads the source field's `data-preset` attribute. Existing CiviCRM
-forms already use `default`, `civimail` and `civievent`. Extensions may provide
-additional names. Without configuration, all presets share the toolbar and
-presentation-preservation policy described below.
+forms already use `default`, `civimail` and `civievent`. An explicit preset
+always wins, including when the form is rendered on the front end. Without an
+explicit preset, public forms use the restricted `frontend` preset and
+`civi-rich-text-input` fields use the restricted `formbuilder` preset. Both
+disable uploads and use the strict HTML ruleset by default, while remaining
+customizable from the preset administration page.
 
 ### Presentation and template styles
 
@@ -158,7 +157,8 @@ Administrators with `administer CiviCRM` can open **Administer > Customize Data
 and Screens > CKEditor 5 presets** (`civicrm/admin/ckeditor5`). Clear CiviCRM's
 cache after deploying to discover the new route, settings metadata and menu.
 
-The page discovers presets from `wysiwyg_presets`. It stores per-domain settings
+The page discovers presets from `wysiwyg_presets` and adds explicit Front-end
+forms and Form Builder tabs. It stores per-domain settings
 in `ckeditor5_presets`, published as `CRM.config.CKEditor5AdminPresets`.
 Each section has an explicit customization checkbox; unchecked sections are
 not stored and continue inheriting. Uncheck everything and save to reset only
@@ -198,7 +198,7 @@ of configuration modified by another extension.
 - Image uploads and file manager: choose `elfinder`, `base64` or `none` (disable
   image uploads and file browsing for the preset). Users without both
   `access CiviCRM` and `access uploaded files` permissions never receive
-  elFinder access and default to `none` when the site is in elFinder mode.
+  elFinder or Base64 uploads and use `none`.
 - HTML QA mode: compare the HTML received when an editor opens with the HTML
   immediately exported by CKEditor. The per-editor report inventories removed
   and generated elements, attributes, classes, inline styles and stylesheet
@@ -301,14 +301,16 @@ shared CKEditor version.
 
 ## A word about builds
 
-The extension ships one shared, self-hosted CKEditor 5 build for elFinder and
-Base64 modes, under `js/ckeditor5/ckeditor-classic-build` (`ckeditor5` `49.0.0`).
-Generated JavaScript and translations are tracked in this repository.
+The extension ships one shared, self-hosted CKEditor 5 build under
+`js/ckeditor5/ckeditor-classic-build` (`ckeditor5` `49.0.1`). Generated
+JavaScript and translations are tracked in this repository.
 
-The existing `CKEditor5-elfinder` and `CKEditor5-base64` settings are preserved.
-The adapter selects the upload plugins at initialization; it disables Base64
-uploads in elFinder mode, and CKFinder integration in Base64 mode. elFinder's
-own assets are loaded only in elFinder mode.
+The canonical editor identifier is `CKEditor5`. The historical
+`CKEditor5-elfinder` and `CKEditor5-base64` identifiers remain runtime
+compatibility aliases and are migrated to a preset upload mode during upgrade.
+The adapter selects the upload mode at initialization; it disables Base64
+uploads in elFinder mode and hides the CiviCRM file manager in Base64 mode.
+elFinder's own assets are loaded only when the editor may use elFinder.
 
 To rebuild the shared bundle, run:
 
@@ -330,5 +332,7 @@ npm run build
   Embedded images increase content and database size, and
   Base64 encoding increases the original binary size by roughly one third.
 
-The shared build includes CKEditor's `CKFinder` integration plugin,
-enabled only in elFinder mode: its command is intercepted by the CiviCRM adapter to open elFinder.
+The shared build includes a `CiviFileManager` toolbar plugin. In elFinder mode,
+the CiviCRM adapter handles its event and opens elFinder without overriding a
+CKFinder command. Existing preset entries named `ckfinder` are migrated to the
+new `civiFileManager` item at runtime and when saved.
