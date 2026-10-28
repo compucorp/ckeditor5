@@ -9,8 +9,8 @@ This release requires CiviCRM 6.16 or later, PHP 8.2 or later, and Smarty 5.
 - Update the bundled CKEditor runtime from 41.0.0 to 49.0.1.
 - Update elFinder from 2.1.53 to 2.1.70 with restricted image MIME types, URL uploads,
   archive operations, file editing, file creation, and network mounts disabled.
-- Require both `access CiviCRM` and `access uploaded files` before exposing
-  server-side uploads.
+- Require `upload files` for direct server-side uploads and independently
+  require `access uploaded files` to browse existing images.
 - Validate embedded Base64 images in the browser and enforce a 10 MiB limit.
 - Document the reviewed upstream advisories and their applicability in
   `SECURITY.md`. The three CKEditor advisories fixed by 49.0.1 affect premium
@@ -27,6 +27,9 @@ This release requires CiviCRM 6.16 or later, PHP 8.2 or later, and Smarty 5.
 - Load CKEditor and elFinder styles reliably for editors initialized after the
   page header, including WordPress front-end forms.
 - Add restricted and customizable Front-end forms and Form Builder presets.
+  Front-end forms retain permitted image uploads and file browsing. Form
+  Builder retains permitted direct image uploads without exposing the file
+  manager.
 - Add a CKEditor 5 configuration button beside the standard CiviCRM WYSIWYG
   setting and move the live preset preview above advanced controls.
 

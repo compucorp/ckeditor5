@@ -124,13 +124,16 @@ test('front-end and Form Builder fields use restricted fallbacks unless a preset
   const frontend = harness({isFrontend: true, ELFinderLocation: '/elfinder.js', CKEditor5UploadMode: 'elfinder'});
   const publicField = frontend();
   assert.equal(publicField.context.preset, 'frontend');
-  assert.equal(publicField.context.uploadAdapter, 'none');
+  assert.equal(publicField.context.uploadAdapter, 'elfinder');
   assert.equal(publicField.config.civiHtmlRuleset, 'strict');
-  assert.ok(!publicField.config.toolbar.items.includes('imageUpload'));
+  assert.ok(publicField.config.toolbar.items.includes('imageUpload'));
+  assert.ok(publicField.config.toolbar.items.includes('civiFileManager'));
 
   const formBuilder = frontend(undefined, {closest: selector => selector === 'civi-rich-text-input' ? {} : null});
   assert.equal(formBuilder.context.preset, 'formbuilder');
-  assert.equal(formBuilder.context.uploadAdapter, 'none');
+  assert.equal(formBuilder.context.uploadAdapter, 'elfinder');
+  assert.ok(formBuilder.config.toolbar.items.includes('imageUpload'));
+  assert.ok(!formBuilder.config.toolbar.items.includes('civiFileManager'));
 
   const event = frontend('civievent');
   assert.equal(event.context.preset, 'civievent');
@@ -389,6 +392,15 @@ test('upload mode disables imageUpload and the CiviCRM file manager when unprivi
   assert.ok(unprivileged.config.removePlugins.includes('ImageUpload'));
   assert.ok(unprivileged.config.removePlugins.includes('Base64UploadAdapter'));
 
+  const unprivilegedFormBuilder = harness({
+    isFrontend: true,
+    ELFinderLocation: null,
+    CKEditor5UploadMode: 'none'
+  })(undefined, {closest: selector => selector === 'civi-rich-text-input' ? {} : null});
+  assert.equal(unprivilegedFormBuilder.context.uploadAdapter, 'none');
+  assert.ok(!unprivilegedFormBuilder.config.toolbar.items.includes('imageUpload'));
+  assert.ok(!unprivilegedFormBuilder.config.toolbar.items.includes('civiFileManager'));
+
   const restrictedPreset = harness({
     ELFinderLocation: '/elfinder.js',
     CKEditor5UploadMode: 'elfinder',
@@ -408,6 +420,28 @@ test('upload mode disables imageUpload and the CiviCRM file manager when unprivi
   assert.ok(mailEditor.config.toolbar.items.includes('imageUpload'));
   assert.ok(mailEditor.config.toolbar.items.includes('civiFileManager'));
   assert.ok(!mailEditor.config.removePlugins.includes('ImageUpload'));
+});
+
+test('upload and file browser permissions control their toolbar buttons independently', () => {
+  const uploadOnly = harness({
+    ELFinderLocation: null,
+    CKEditor5UploadMode: 'elfinder',
+    CKEditor5CanUploadFiles: true,
+    CKEditor5CanBrowseFiles: false
+  })('default');
+  assert.equal(uploadOnly.context.uploadAdapter, 'elfinder');
+  assert.ok(uploadOnly.config.toolbar.items.includes('imageUpload'));
+  assert.ok(!uploadOnly.config.toolbar.items.includes('civiFileManager'));
+
+  const browseOnly = harness({
+    ELFinderLocation: '/elfinder.js',
+    CKEditor5UploadMode: 'none',
+    CKEditor5CanUploadFiles: false,
+    CKEditor5CanBrowseFiles: true
+  })('default');
+  assert.equal(browseOnly.context.uploadAdapter, 'none');
+  assert.ok(!browseOnly.config.toolbar.items.includes('imageUpload'));
+  assert.ok(browseOnly.config.toolbar.items.includes('civiFileManager'));
 });
 
 test('preserveTemplateStyles preserves full HTML document envelope across default and civimail presets', () => {

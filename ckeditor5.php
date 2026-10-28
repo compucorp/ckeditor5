@@ -97,9 +97,10 @@ function ckeditor5_civicrm_coreResourceList(&$items, $region) {
 
   $locale = CRM_Core_I18n::getLocale();
   $lang = substr($locale, 0, 2);
-  $canUpload = CRM_Core_Permission::check('access CiviCRM')
-    && CRM_Core_Permission::check('access uploaded files');
-  $canUseElFinder = $canUpload && $legacyUploadMode !== 'base64';
+  $canAccessCivi = CRM_Core_Permission::check('access CiviCRM');
+  $canUpload = $canAccessCivi && CRM_Core_Permission::check('upload files');
+  $canBrowse = $canAccessCivi && CRM_Core_Permission::check('access uploaded files');
+  $canUseElFinder = $canBrowse && $legacyUploadMode !== 'base64';
   $uploadMode = $canUpload ? ($legacyUploadMode ?: 'elfinder') : 'none';
   $resources = CRM_Core_Resources::singleton();
 
@@ -122,6 +123,8 @@ function ckeditor5_civicrm_coreResourceList(&$items, $region) {
       $resources->getUrl('ckeditor5', 'js/elFinder/css/theme.css', TRUE),
     ] : [],
     'CKEditor5UploadMode' => $uploadMode,
+    'CKEditor5CanUploadFiles' => $canUpload,
+    'CKEditor5CanBrowseFiles' => $canBrowse,
   ]];
 
   if ($canUseElFinder) {

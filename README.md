@@ -83,7 +83,10 @@ forms already use `default`, `civimail` and `civievent`. An explicit preset
 always wins, including when the form is rendered on the front end. Without an
 explicit preset, public forms use the restricted `frontend` preset and
 `civi-rich-text-input` fields use the restricted `formbuilder` preset. Both
-disable uploads and use the strict HTML ruleset by default, while remaining
+use the strict HTML ruleset by default. The front-end preset retains permitted
+image uploads and file browsing. Form Builder retains permitted direct image
+uploads but omits the file manager button. Users without file permissions do
+not receive the corresponding upload or browse control. Both presets remain
 customizable from the preset administration page.
 
 ### Presentation and template styles
@@ -196,9 +199,10 @@ of configuration modified by another extension.
   without `<style>` blocks), or `strict` (standard CKEditor schema only,
   recommended for presets shared with public or FormBuilder application forms).
 - Image uploads and file manager: choose `elfinder`, `base64` or `none` (disable
-  image uploads and file browsing for the preset). Users without both
-  `access CiviCRM` and `access uploaded files` permissions never receive
-  elFinder or Base64 uploads and use `none`.
+  image uploads and file browsing for the preset). Direct uploads require the
+  CMS `upload files` permission. Browsing existing images through elFinder
+  separately requires `access uploaded files`. Users without upload permission
+  use `none`, while the file-manager button follows its own browse permission.
 - HTML QA mode: compare the HTML received when an editor opens with the HTML
   immediately exported by CKEditor. The per-editor report inventories removed
   and generated elements, attributes, classes, inline styles and stylesheet

@@ -1177,13 +1177,11 @@
     const contextPresets = {
       frontend: {
         civiHtmlRuleset: 'strict',
-        civiUploadMode: 'none',
-        toolbar: {items: ['heading', '|', 'bold', 'italic', 'link', '|', 'bulletedList', 'numberedList', '|', 'undo', 'redo']}
+        toolbar: {items: ['heading', '|', 'bold', 'italic', 'link', '|', 'bulletedList', 'numberedList', '|', 'imageUpload', 'civiFileManager', '|', 'undo', 'redo']}
       },
       formbuilder: {
         civiHtmlRuleset: 'strict',
-        civiUploadMode: 'none',
-        toolbar: {items: ['heading', '|', 'bold', 'italic', 'link', '|', 'bulletedList', 'numberedList', '|', 'undo', 'redo']}
+        toolbar: {items: ['heading', '|', 'bold', 'italic', 'link', '|', 'bulletedList', 'numberedList', '|', 'imageUpload', '|', 'undo', 'redo']}
       }
     };
     const hasConfig = (registry, name) => Object.prototype.hasOwnProperty.call(registry, name)
@@ -1202,13 +1200,14 @@
         }
       });
     });
-    const siteUploadMode = CRM.config.CKEditor5UploadMode === 'none' && !useElFinder
-      ? 'none'
+    const configuredUploadMode = CRM.config.CKEditor5UploadMode;
+    const siteUploadMode = ['none', 'elfinder', 'base64'].includes(configuredUploadMode)
+      ? configuredUploadMode
       : (useElFinder ? 'elfinder' : 'base64');
     const resolveUploadMode = function(requestedMode) {
       if (siteUploadMode === 'none' || requestedMode === 'none') return 'none';
       if (requestedMode === 'base64') return 'base64';
-      if (requestedMode === 'elfinder' && useElFinder) return 'elfinder';
+      if (requestedMode === 'elfinder') return 'elfinder';
       return siteUploadMode;
     };
     const rawAttr = $(item).attr('data-ckeditor5-raw') || $(item).attr('data-wysiwyg-raw');
@@ -1243,6 +1242,7 @@
 
     // Select one upload mode after all overrides. Preserve unrelated exclusions.
     const effectiveUploadMode = resolveUploadMode(editorConfig.civiUploadMode);
+    editorConfig.civiResolvedUploadMode = effectiveUploadMode;
     const modePlugins = effectiveUploadMode === 'none'
       ? ['Base64UploadAdapter', 'ImageUpload']
       : ['Base64UploadAdapter'];
@@ -1265,8 +1265,14 @@
     else if (editorConfig.toolbar && Array.isArray(editorConfig.toolbar.items)) {
       editorConfig.toolbar.items = editorConfig.toolbar.items.map(replaceLegacyFileManager);
     }
-    if (effectiveUploadMode !== 'elfinder') {
-      const disallowedButtons = effectiveUploadMode === 'none' ? ['civiFileManager', 'imageUpload'] : ['civiFileManager'];
+    const canBrowseFiles = CRM.config.CKEditor5CanBrowseFiles === undefined
+      ? useElFinder
+      : CRM.config.CKEditor5CanBrowseFiles === true;
+    const presetDisablesFiles = editorConfig.civiUploadMode === 'none';
+    if (effectiveUploadMode === 'none' || !canBrowseFiles || presetDisablesFiles) {
+      const disallowedButtons = [];
+      if (effectiveUploadMode === 'none') disallowedButtons.push('imageUpload');
+      if (!canBrowseFiles || presetDisablesFiles) disallowedButtons.push('civiFileManager');
       if (Array.isArray(editorConfig.toolbar)) {
         editorConfig.toolbar = editorConfig.toolbar.filter(item => !disallowedButtons.includes(item));
       }
@@ -1386,13 +1392,14 @@
       const uploadTargetHash = 'l1_Lw';
       // elFinder connector URL
       const connectorUrl = CRM.url('civicrm/ckeditor5/image-manager', null, 'back');
+      const canBrowseFiles = CRM.config.CKEditor5CanBrowseFiles === true;
       const fileRepo = editor.plugins.get('FileRepository'),
         ntf = editor.plugins.get('Notification'),
         i18 = editor.locale.t,
         // Insert images to editor window
         insertImages = urls => {
-          const imgCmd = editor.commands.get('imageUpload');
-          if (!imgCmd.isEnabled) {
+          const imgCmd = editor.commands.get('imageInsert');
+          if (!imgCmd || !imgCmd.isEnabled) {
             ntf.showWarning(i18('Could not insert image at the current position.'), {
               title: i18('Inserting image failed'),
               namespace: 'civiFileManager'
@@ -1494,44 +1501,40 @@
       // elFinder instance
       let _fm;
 
-      editor.on('civiFileManager:open', () => {
-        getfm().then(fm => {
-          fm.getUI().dialogelfinder('open');
+      if (canBrowseFiles) {
+        editor.on('civiFileManager:open', () => {
+          getfm().then(fm => {
+            fm.getUI().dialogelfinder('open');
+          });
         });
-      });
+      }
 
       // Make uploader
       const uploder = function(loader) {
+        let request;
         let upload = function(file, resolve, reject) {
-          getfm(uploadTargetHash).then(fm => {
-            let fmNode = fm.getUI();
-            fmNode.dialogelfinder('open');
-            fm.exec('upload', {files: [file], target: uploadTargetHash}, void(0), uploadTargetHash)
-              .done(data => {
-                if (data.added && data.added.length) {
-                  fm.url(data.added[0].hash, { async: true }).done(function(url) {
-                    resolve({
-                      'default': fm.convAbsUrl(url)
-                    });
-                    fmNode.dialogelfinder('close');
-                  }).fail(function() {
-                    reject('errFileNotFound');
-                  });
-                } else {
-                  reject(fm.i18n(data.error? data.error : 'errUpload'));
-                  fmNode.dialogelfinder('close');
-                }
-              })
-              .fail(err => {
-                const error = fm.parseError(err);
-                reject(fm.i18n(error? (error === 'userabort'? 'errAbort' : error) : 'errUploadNoFiles'));
-              });
-          }).catch(err => {
-            const error = _fm && typeof _fm.parseError === 'function' ? _fm.parseError(err) : null;
-            const message = _fm && typeof _fm.i18n === 'function'
-              ? _fm.i18n(error ? (error === 'userabort' ? 'errAbort' : error) : 'errUploadNoFiles')
-              : (err && err.message ? err.message : String(err || 'errUploadNoFiles'));
-            reject(message);
+          const formData = new FormData();
+          formData.append('cmd', 'upload');
+          formData.append('target', uploadTargetHash);
+          formData.append('ckeditor5_direct_upload', '1');
+          formData.append('upload[]', file, file.name);
+          formData.append('mtime[]', file.lastModified ? Math.round(file.lastModified / 1000) : 0);
+          request = $.ajax({
+            url: connectorUrl,
+            method: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            dataType: 'json'
+          }).done(data => {
+            const uploaded = data && data.added && data.added[0];
+            if (uploaded && uploaded.url) {
+              resolve({'default': uploaded.url});
+              return;
+            }
+            reject(data && data.error ? String(data.error) : 'errUploadNoFiles');
+          }).fail((xhr, status, error) => {
+            reject(error || status || 'errUploadNoFiles');
           });
         };
 
@@ -1547,7 +1550,7 @@
           });
         };
         this.abort = function() {
-          _fm && _fm.getUI().trigger('uploadabort');
+          if (request && typeof request.abort === 'function') request.abort();
         };
       };
 
@@ -1627,7 +1630,9 @@
       const config = getEditorConfig(item, useElFinder);
       const removed = Array.isArray(config.removePlugins) ? config.removePlugins : [];
       const uploadsDisabled = removed.includes('ImageUpload');
-      const activeElFinder = useElFinder && !uploadsDisabled;
+      const canBrowseFiles = CRM.config.CKEditor5CanBrowseFiles === true;
+      const activeElFinder = (config.civiResolvedUploadMode === 'elfinder' && !uploadsDisabled)
+        || (useElFinder && canBrowseFiles);
 
       $(item).addClass('crm-wysiwyg-enabled');
       ClassicEditor
@@ -1639,7 +1644,7 @@
           catch (error) {
             console.error('Unable to build the CKEditor 5 HTML QA report.', error);
           }
-          if (uploadsDisabled) {
+          if (uploadsDisabled && !activeElFinder) {
             onReady(editor);
           }
           else {

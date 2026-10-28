@@ -54,16 +54,17 @@ Earlier advisories reviewed but not applicable to the old 41.0.0 build:
 
 ## Integration hardening
 
-The connector requires both `access CiviCRM` and `access uploaded files`
-permissions and is configured with:
+The connector requires `access CiviCRM`. Direct uploads additionally require
+the CMS `upload files` permission, while browsing existing images requires
+`access uploaded files`. A user with browse access but no upload permission
+receives a read-only elFinder volume. The connector is configured with:
 
 - a strict image MIME allow-list (`bmp`, `gif`, `jpeg`, `png`, `webp`, `ico`);
 - disabled `mkfile`, `archive`, `extract`, `edit`, and `netmount` commands;
 - no FTP netmount registration;
 - no server-side URL uploads;
 - LocalFileSystem and Trash volumes only;
-- no elFinder assets or Base64 upload fallback when a user lacks CiviCRM file
-  permissions.
+- independent server-side authorization for direct uploads and file browsing.
 
 These controls reduce exposure but do not replace future review of upstream
 CKEditor and elFinder advisories.

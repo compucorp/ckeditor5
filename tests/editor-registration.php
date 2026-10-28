@@ -71,10 +71,10 @@ class CRM_Core_I18n {
 
 class CRM_Core_Permission {
 
-  public static $allowed = TRUE;
+  public static $allowed = [];
 
   public static function check($permission) {
-    return self::$allowed;
+    return self::$allowed[$permission] ?? FALSE;
   }
 
 }
@@ -103,12 +103,16 @@ Civi::$settings = new TestSettings();
 CRM_Core_Resources::$instance = new CRM_Core_Resources();
 require_once __DIR__ . '/../ckeditor5.php';
 
-function resourcesFor($editorId, $canUpload, array $presets = []) {
+function resourcesFor($editorId, $canUpload, array $presets = [], $canBrowse = NULL) {
   Civi::$settings->values = [
     'editor_id' => $editorId,
     'ckeditor5_presets' => $presets,
   ];
-  CRM_Core_Permission::$allowed = $canUpload;
+  CRM_Core_Permission::$allowed = [
+    'access CiviCRM' => TRUE,
+    'upload files' => $canUpload,
+    'access uploaded files' => $canBrowse ?? $canUpload,
+  ];
   CRM_Core_Resources::$instance = new CRM_Core_Resources();
   $items = [];
   ckeditor5_civicrm_coreResourceList($items, 'html-header');
@@ -121,6 +125,8 @@ check($items === [] && $styles === [], 'Unrelated editors must not receive CKEdi
 [$items, $styles] = resourcesFor('CKEditor5', TRUE, ['default' => ['toolbar' => ['items' => ['bold']]]]);
 check(count($items) === 1, 'The canonical editor must receive one configuration block.');
 check($items[0]['config']['CKEditor5UploadMode'] === 'elfinder', 'The canonical editor must expose elFinder when permitted.');
+check($items[0]['config']['CKEditor5CanUploadFiles'] === TRUE, 'The canonical editor must expose direct upload permission.');
+check($items[0]['config']['CKEditor5CanBrowseFiles'] === TRUE, 'The canonical editor must expose file browser permission.');
 check($items[0]['config']['ELFinderLocation'] !== NULL, 'The canonical editor must receive the elFinder runtime when permitted.');
 check($items[0]['config']['CKEditor5Stylesheets'] === ['/ext/ckeditor5/css/ckeditor.css'], 'The canonical editor must expose integration styles to late initializers.');
 check(count($items[0]['config']['ELFinderStylesheets']) === 2, 'The canonical editor must expose elFinder styles when permitted.');
@@ -138,5 +144,17 @@ check($items[0]['config']['CKEditor5UploadMode'] === 'none', 'Users without file
 check($items[0]['config']['ELFinderLocation'] === NULL, 'Users without file permissions must not receive elFinder.');
 check($items[0]['config']['ELFinderStylesheets'] === [], 'Users without file permissions must not receive elFinder styles.');
 check($styles === ['/ext/ckeditor5/css/ckeditor.css'], 'Users without file permissions must receive only editor styles.');
+
+[$items, $styles] = resourcesFor('CKEditor5', TRUE, [], FALSE);
+check($items[0]['config']['CKEditor5UploadMode'] === 'elfinder', 'Upload permission must enable direct uploads without browser permission.');
+check($items[0]['config']['ELFinderLocation'] === NULL, 'Upload permission alone must not expose the file browser runtime.');
+check($items[0]['config']['CKEditor5CanUploadFiles'] === TRUE, 'Upload permission must be exposed independently.');
+check($items[0]['config']['CKEditor5CanBrowseFiles'] === FALSE, 'Missing browser permission must be exposed independently.');
+
+[$items, $styles] = resourcesFor('CKEditor5', FALSE, [], TRUE);
+check($items[0]['config']['CKEditor5UploadMode'] === 'none', 'Browser permission alone must not enable direct uploads.');
+check($items[0]['config']['ELFinderLocation'] !== NULL, 'Browser permission must expose the file browser runtime.');
+check($items[0]['config']['CKEditor5CanUploadFiles'] === FALSE, 'Browser permission must not imply upload permission.');
+check($items[0]['config']['CKEditor5CanBrowseFiles'] === TRUE, 'Browser permission must be exposed independently.');
 
 echo "PASS: CKEditor 5 registration, aliases, permissions, and preset migration are valid.\n";
