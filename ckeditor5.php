@@ -44,7 +44,7 @@ function ckeditor5_civicrm_buildForm($formName, &$form) {
     [
       'type' => 'submit',
       'class' => 'crm-button',
-      'style' => 'display:inline-block;vertical-align:middle;float:none!important;',
+      'style' => 'display:inline-flex;align-items:center;justify-content:center;gap:0.4em;vertical-align:middle;float:none!important;white-space:nowrap;',
       'value' => 1,
     ]
   );
@@ -132,17 +132,5 @@ function ckeditor5_civicrm_coreResourceList(&$items, $region) {
     $resources->addStyleUrl($resources->getUrl('ckeditor5', 'js/elFinder/css/theme.css', TRUE));
   }
   $resources->addStyleUrl($resources->getUrl('ckeditor5', 'css/ckeditor.css', TRUE));
-}
-
-/**
- * Implements hook_civicrm_navigationMenu().
- */
-function ckeditor5_civicrm_navigationMenu(&$menu) {
-  _ckeditor5_civix_insert_navigation_menu($menu, 'Administer/Customize Data and Screens', [
-    'label' => E::ts('CKEditor 5 presets'),
-    'name' => 'ckeditor5_presets',
-    'url' => 'civicrm/admin/ckeditor5?reset=1',
-    'permission' => 'administer CiviCRM',
-  ]);
 }
 

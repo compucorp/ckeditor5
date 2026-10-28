@@ -156,9 +156,12 @@ No editor rebuild is required for options supported by the included plugins.
 
 ### Preset administration
 
-Administrators with `administer CiviCRM` can open **Administer > Customize Data
-and Screens > CKEditor 5 presets** (`civicrm/admin/ckeditor5`). Clear CiviCRM's
-cache after deploying to discover the new route, settings metadata and menu.
+Administrators with `administer CiviCRM` can open the preset page from the
+CKEditor 5 configuration control below the WYSIWYG selector on **Administer >
+Customize Data and Screens > Display Preferences**. The page remains available
+at `civicrm/admin/ckeditor5`, but it does not add a separate navigation item.
+Clear CiviCRM's cache after deploying to discover the route and settings
+metadata.
 
 The page discovers presets from `wysiwyg_presets` and adds explicit Front-end
 forms and Form Builder tabs. It stores per-domain settings
