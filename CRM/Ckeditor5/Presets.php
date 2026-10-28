@@ -6,7 +6,7 @@
 class CRM_Ckeditor5_Presets {
 
   public static function buttons() {
-    return explode(' ', 'heading | findAndReplace civiTokens bold underline italic strikethrough superscript subscript highlight removeFormat specialCharacters fontFamily fontColor fontBackgroundColor fontSize bulletedList numberedList indent outdent alignment link imageUpload civiFileManager blockQuote insertTable insertTableLayout tableType horizontalLine mediaEmbed undo redo pageBreak htmlEmbed sourceEditing code style fullscreen');
+    return explode(' ', 'heading | findAndReplace civiTokens bold underline italic strikethrough superscript subscript highlight removeFormat specialCharacters fontFamily fontColor fontBackgroundColor fontSize bulletedList numberedList todoList indent outdent alignment textPartLanguage link imageUpload civiFileManager blockQuote insertTable insertTableLayout tableType toggleTableCaption horizontalLine mediaEmbed bookmark emoji showBlocks undo redo pageBreak htmlEmbed sourceEditing code style fullscreen');
   }
 
   public static function parse(array $values) {

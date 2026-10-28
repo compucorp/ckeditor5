@@ -114,6 +114,7 @@ function ckeditor5_civicrm_coreResourceList(&$items, $region) {
     'CKEditor5Language' => ($lang !== 'en' ? $resources->getUrl('ckeditor5', 'js/ckeditor5/ckeditor-classic-build/build/translations/' . $lang . '.js', TRUE) : ''),
     'wysisygScriptLocation' => $resources->getUrl('ckeditor5', 'js/wysiwyg/crm.ckeditor5.js', TRUE),
     'CKEditor5Location' => $resources->getUrl('ckeditor5', 'js/ckeditor5/ckeditor-classic-build/build/ckeditor.js', TRUE),
+    'CKEditor5EmojiDefinitions' => $resources->getUrl('ckeditor5', 'js/ckeditor5/emoji/16/en.json', TRUE),
     'ELFinderLocation' => $canUseElFinder ? $resources->getUrl('ckeditor5', 'js/elFinder/js/elfinder.min.js', TRUE) : NULL,
     'CKEditor5Stylesheets' => [
       $resources->getUrl('ckeditor5', 'css/ckeditor.css', TRUE),

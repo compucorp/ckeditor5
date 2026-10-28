@@ -177,10 +177,13 @@ of configuration modified by another extension.
 - CiviCRM tokens: the optional `civiTokens` toolbar button searches the tokens
   available for the current editor preset and inserts one at the current
   selection. It is not enabled in the default toolbar because CiviCRM already
-  provides a token selector on the relevant forms. The catalogue is loaded only
-  when the picker opens. CKEditor does not maintain a token-name allowlist: the
-  catalogue comes from CiviCRM's `TokenProcessor`, including tokens registered
-  by enabled extensions. Its broad discovery schema can be extended by
+  provides a token selector on the relevant forms. Typing `{` in the visual
+  editor uses CKEditor's native Mention autocomplete; Source Editing and HTML
+  Embed retain a textarea-compatible autocomplete. Selected tokens are stored
+  as plain `{token}` text, without mention markup. CKEditor does not maintain a
+  token-name allowlist: the catalogue comes from the current page when CiviCRM
+  exposes one, otherwise from CiviCRM's `TokenProcessor`, including tokens
+  registered by enabled extensions. Its broad discovery schema can be extended by
   subscribing to the `civi.ckeditor5.tokenSchema` event and appending a context
   field to `$event->schema`.
 - Fullscreen: choose whether its menu bar is visible and whether toolbar items
@@ -248,6 +251,41 @@ CRM.$(document).on('crmCkeditor5Config', function(event, config, context) {
 
 The listener may alter any option supported by the plugins already included in
 the selected CKEditor build.
+
+Plugins exposed by the shared runtime but intentionally inactive by default can
+be enabled for an individual field with `enableBundledPlugin()`. For example,
+an extension can opt into CKEditor's full-page data processor:
+
+```javascript
+CRM.$(document).on('crmCkeditor5Config', function(event, config, context) {
+  if (context.preset !== 'my-full-page-preset') {
+    return;
+  }
+
+  config.civiPreserveTemplateStyles = false;
+  CRM.ckeditor5.enableBundledPlugin(config, 'FullPage');
+});
+```
+
+`FullPage` replaces the document-envelope behavior for that field, so the
+CiviCRM-specific preservation layer must be disabled as above. `ImageInsert`
+can be enabled in the same way on fields where `ImageUpload` is permitted:
+
+```javascript
+CRM.ckeditor5.enableBundledPlugin(config, 'ImageInsert');
+config.toolbar.items.push('insertImage');
+```
+
+Neither plugin is active in the default presets. The shared runtime also
+exposes its other `ckeditor5` package exports through `window.CKEDITOR` for
+extension integrations.
+
+The shared editor activates `AutoLink`, `Mention`, `TextPartLanguage`,
+`ShowBlocks`, `TodoList`, `WordCount`, `Emoji`, `IndentBlock`, `TableCaption`
+and `Bookmark`. Their toolbar components remain optional and are available in
+the preset administration picker; they are not added to the default toolbar.
+`IndentBlock` extends the existing indent and outdent controls. Emoji metadata
+is served from the extension's local assets instead of CKEditor's CDN.
 
 ### Markdown input and output
 

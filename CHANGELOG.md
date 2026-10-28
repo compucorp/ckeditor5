@@ -40,8 +40,18 @@ This release requires CiviCRM 6.16 or later, PHP 8.2 or later, and Smarty 5.
   layout, inline email images, and representative CKEditor 4 content more
   faithfully.
 - Add optional HTML transformation reports for migration testing.
-- Add CiviCRM token selection and inline token autocomplete without maintaining
-  an extension-local token allow-list.
+- Add CiviCRM token selection and native Mention-based autocomplete without
+  maintaining an extension-local token allow-list.
+- Add Markdown paste support and an opt-in Markdown storage preset for fields
+  which explicitly store Markdown instead of HTML.
+- Bundle the open-source AutoLink, Bookmark, Emoji, IndentBlock, Mention,
+  ShowBlocks, TableCaption, TextPartLanguage, TodoList, and WordCount plugins.
+  Their toolbar controls remain optional and Emoji data is served locally.
+- Expose bundled plugins such as FullPage and ImageInsert to extensions without
+  enabling them in the default presets.
+- Keep collapsed editors open while link and other contextual editor controls
+  have focus, and allow elFinder to receive keyboard focus inside CiviCRM
+  popups.
 
 ### Distribution
 

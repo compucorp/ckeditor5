@@ -103,10 +103,9 @@ test('page token discovery reads native CiviCRM form tokens and ranks inline mat
   assert.equal(byLabel[0].id, '{action.unsubscribeUrl}');
 });
 
-test('inline autocomplete does not spam network requests on failure or empty responses', async () => {
+test('native mention feed does not spam network requests after a failure', async () => {
   let networkCalls = 0;
   let shouldFail = true;
-  let changeDataCallback;
   class Plugin {}
   class ButtonView {
     set() {}
@@ -136,55 +135,94 @@ test('inline autocomplete does not spam network requests on failure or empty res
     };
   };
   const CKEDITOR = {Plugin, ButtonView, version: '49.0.1'};
-  const document = {
-    body: {appendChild() {}},
-    createElement: () => ({
-      style: {},
-      setAttribute() {},
-      appendChild() {},
-      addEventListener() {}
-    })
-  };
   vm.runInNewContext(fs.readFileSync(`${__dirname}/../js/plugins/civi-tokens.js`, 'utf8'), {
     CRM,
     window: {CKEDITOR},
-    document,
     Date,
     Promise,
     Object
   });
   const editor = {
-    ui: {componentFactory: {add() {}}, view: {element: {}}},
-    model: {
-      document: {
-        selection: {
-          isCollapsed: true,
-          focus: {
-            parent: {},
-            offset: 4,
-            textNode: {data: '{con'}
-          }
-        },
-        on(evt, cb) {
-          if (evt === 'change:data') changeDataCallback = cb;
-        }
-      }
-    },
-    editing: {view: {document: {isFocused: true, on() {}}}},
     config: {get() { return {preset: 'default'}; }}
   };
-  const instance = new CRM.ckeditor5.PluginClass();
+  const feed = CRM.ckeditor5.tokenPicker.createMentionFeed();
+
+  await feed.feed.call(editor, 'con');
+  assert.equal(networkCalls, 1, 'First keystroke after { triggers one catalogue fetch');
+
+  await feed.feed.call(editor, 'cont');
+  await feed.feed.call(editor, 'conta');
+  assert.equal(networkCalls, 1, 'Failed catalogue fetch is throttled during cooldown instead of spamming on every keystroke');
+});
+
+test('mention configuration preserves other markers and adds one CiviCRM feed', () => {
+  const {CRM} = loadPlugin();
+  const existingFeed = {marker: '@', feed: ['@alice']};
+  const config = {mention: {feeds: [existingFeed], dropdownLimit: 20}};
+
+  CRM.ckeditor5.tokenPicker.configureMention(config);
+  CRM.ckeditor5.tokenPicker.configureMention(config);
+
+  assert.equal(config.mention.dropdownLimit, 20);
+  assert.equal(config.mention.feeds.length, 2);
+  assert.equal(config.mention.feeds[0], existingFeed);
+  assert.equal(config.mention.feeds[1].marker, '{');
+  assert.equal(typeof config.mention.feeds[1].feed, 'function');
+  assert.equal(config.mention.feeds[1].feed('contact.display_name}').length, 0);
+});
+
+test('CiviCRM mentions insert plain token text while other mention markers remain native', () => {
+  let executeListener;
+  let executeOptions;
+  let stopped = false;
+  const {CRM, registration} = loadPlugin();
+  const mentionCommand = {
+    on(event, listener, options) {
+      assert.equal(event, 'execute');
+      executeListener = listener;
+      executeOptions = options;
+    }
+  };
+  const selection = {
+    getAttributes() {
+      return [['bold', true], ['mention', {id: '{old.token}'}]];
+    }
+  };
+  const editor = {
+    commands: {get(name) { return name === 'mention' ? mentionCommand : null; }},
+    ui: {componentFactory: {add() {}}},
+    model: {
+      document: {selection},
+      change(callback) {
+        callback({createText: (value, attributes) => ({value, attributes})});
+      },
+      insertContent(content, range) {
+        this.inserted = {content, range};
+      }
+    },
+    config: {get() { return {}; }}
+  };
+  const instance = new registration.constructor();
   instance.editor = editor;
   instance.init();
 
-  changeDataCallback({}, {isLocal: true});
-  await new Promise(r => setImmediate(r));
-  assert.equal(networkCalls, 1, 'First keystroke after { triggers one catalogue fetch');
+  assert.equal(executeOptions.priority, 'highest');
+  const range = {name: 'completion-range'};
+  executeListener({stop() { stopped = true; }}, [{
+    marker: '{',
+    mention: {id: '{contact.display_name}'},
+    text: '{contact.display_name}',
+    range
+  }]);
 
-  changeDataCallback({}, {isLocal: true});
-  changeDataCallback({}, {isLocal: true});
-  await new Promise(r => setImmediate(r));
-  assert.equal(networkCalls, 1, 'Failed catalogue fetch is throttled during cooldown instead of spamming on every keystroke');
+  assert.equal(stopped, true);
+  assert.equal(editor.model.inserted.content.value, '{contact.display_name}');
+  assert.deepEqual(Array.from(editor.model.inserted.content.attributes), [['bold', true]]);
+  assert.equal(editor.model.inserted.range, range);
+
+  stopped = false;
+  executeListener({stop() { stopped = true; }}, [{marker: '@', mention: {id: '@alice'}}]);
+  assert.equal(stopped, false, 'Non-CiviCRM mention markers keep CKEditor native behavior');
 });
 
 

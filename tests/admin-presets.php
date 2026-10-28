@@ -40,6 +40,13 @@ check($config['style']['definitions'][0]['classes'] === ['lead', 'brand'], 'Styl
 check(CRM_Ckeditor5_Presets::parse(['custom_styles' => 1, 'styles' => '']) === ['style' => ['definitions' => []]], 'Empty styles must clear inheritance.');
 check(CRM_Ckeditor5_Presets::parse(['custom_toolbar' => 1, 'toolbar_items' => '[]']) === ['toolbar' => ['items' => []]], 'An empty toolbar must be supported.');
 check(
+  CRM_Ckeditor5_Presets::parse([
+    'custom_toolbar' => 1,
+    'toolbar_items' => '["todoList","textPartLanguage","toggleTableCaption","bookmark","emoji","showBlocks"]',
+  ]) === ['toolbar' => ['items' => ['todoList', 'textPartLanguage', 'toggleTableCaption', 'bookmark', 'emoji', 'showBlocks']]],
+  'Optional bundled plugin buttons must be available to the toolbar picker.'
+);
+check(
   CRM_Ckeditor5_Presets::parse(['custom_toolbar' => 1, 'toolbar_items' => '["imageUpload","ckfinder"]'])
     === ['toolbar' => ['items' => ['imageUpload', 'civiFileManager']]],
   'Legacy CKFinder toolbar entries must migrate to the CiviCRM file manager.'

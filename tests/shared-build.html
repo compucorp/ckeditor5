@@ -8,6 +8,7 @@
 <p>This standalone test checks plugin activation and Base64 conversion, not the CiviCRM connector.</p>
 <h2>Base64</h2><div id="base64"><p>Base64 mode</p></div>
 <h2>elFinder plugin configuration</h2><div id="elfinder"><p>elFinder mode</p></div>
+<h2>Opt-in bundled plugins</h2><div id="opt-in"><p>Optional plugins</p></div>
 <h2>Markdown</h2><div id="markdown" data-preset="markdown">## Markdown mode</div>
 <pre id="result">Running</pre>
 <script src="../js/ckeditor5/ckeditor-classic-build/build/ckeditor.js"></script>
@@ -17,14 +18,31 @@ const $ = item => ({attr: name => item.getAttribute(name), trigger() {}});
 $.extend = Object.assign;
 $.isPlainObject = value => value !== null && typeof value === 'object'
   && Object.getPrototypeOf(value) === Object.prototype;
-window.CRM = {$, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
+window.CRM = {$, _: {}, wysiwyg: {}, config: {
+  locale: 'en_US',
+  CKEditor5EmojiDefinitions: '../js/ckeditor5/emoji/16/en.json'
+},
+ts: () => value => value,
+url: path => path,
+crmMailing: {
+  mailTokens: [{
+    text: 'Contact',
+    children: [
+      {id: '{contact.display_name}', text: 'Display name'},
+      {id: '{contact.email}', text: 'Email'}
+    ]
+  }]
+}};
 </script>
 <script src="../js/wysiwyg/crm.ckeditor5.js"></script>
+<script src="../js/plugins/civi-tokens.js"></script>
 <script>
 (async function () {
   const check = (condition, message) => { if (!condition) throw new Error(message); };
   check(window.CKEDITOR_VERSION === '49.0.1', 'Unexpected CKEditor runtime version');
   check(window.CKEDITOR && window.CKEDITOR.Plugin, 'Shared CKEditor runtime API is missing');
+  check(typeof window.CKEDITOR.FullPage === 'function', 'FullPage is not exposed by the shared runtime');
+  check(typeof window.CKEDITOR.ImageInsert === 'function', 'ImageInsert is not exposed by the shared runtime');
   class ExternalSmokePlugin extends window.CKEDITOR.Plugin {
     static get pluginName() {
       return 'ExternalSmokePlugin';
@@ -37,8 +55,36 @@ window.CRM = {$, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
   const base64 = await ClassicEditor.create({
     ...CRM.wysiwyg.getConfig(base64Element, false), attachTo: base64Element
   });
+  for (const pluginName of [
+    'AutoLink', 'Bookmark', 'Emoji', 'IndentBlock', 'Mention', 'ShowBlocks',
+    'TableCaption', 'TextPartLanguage', 'TodoList', 'WordCount'
+  ]) {
+    check(base64.plugins.has(pluginName), 'Bundled plugin missing: ' + pluginName);
+  }
+  check(!base64.plugins.has('FullPage'), 'FullPage must remain opt-in');
+  check(!base64.plugins.has('ImageInsert'), 'ImageInsert must remain opt-in');
   check(base64.plugins.has('Base64UploadAdapter'), 'Base64 adapter missing');
   check(base64.plugins.has('CiviFileManager'), 'CiviCRM file manager plugin missing');
+  check(base64.plugins.has('CiviTokens'), 'CiviCRM token plugin missing');
+  const civiMentionFeed = base64.config.get('mention.feeds').find(feed => feed.marker === '{');
+  check(civiMentionFeed, 'CiviCRM native mention feed missing');
+  const tokenMatches = await civiMentionFeed.feed.call(base64, 'contact.d');
+  check(tokenMatches.length === 1 && tokenMatches[0].id === '{contact.display_name}', 'CiviCRM token feed failed');
+  base64.setData('<p>{con</p>');
+  let completionRange;
+  base64.model.change(writer => {
+    const paragraph = base64.model.document.getRoot().getChild(0);
+    const focus = base64.model.createPositionAt(paragraph, 'end');
+    completionRange = writer.createRange(focus.getShiftedBy(-4), focus);
+    writer.setSelection(focus);
+  });
+  base64.execute('mention', {
+    marker: '{',
+    mention: tokenMatches[0],
+    text: tokenMatches[0].id,
+    range: completionRange
+  });
+  check(base64.getData() === '<p>{contact.display_name}</p>', 'CiviCRM token mention was not saved as plain text');
   check(!base64.config.get('toolbar.items').includes('civiFileManager'), 'File manager button must be disabled');
   const repository = base64.plugins.get('FileRepository');
   repository.createUploadAdapter = CRM.ckeditor5.createValidatedBase64UploadAdapter;
@@ -83,6 +129,16 @@ window.CRM = {$, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
   check(!elfinder.plugins.has('Base64UploadAdapter'), 'Base64 must be disabled');
   check(elfinder.plugins.has('CiviFileManager'), 'File manager integration missing');
   check(elfinder.config.get('toolbar.items').includes('civiFileManager'), 'File manager button missing');
+  const optInElement = document.querySelector('#opt-in');
+  const optInConfig = CRM.wysiwyg.getConfig(optInElement, false);
+  optInConfig.civiPreserveTemplateStyles = false;
+  CRM.ckeditor5.enableBundledPlugin(optInConfig, 'FullPage');
+  CRM.ckeditor5.enableBundledPlugin(optInConfig, 'ImageInsert');
+  optInConfig.toolbar.items = ['insertImage'];
+  const optIn = await ClassicEditor.create({...optInConfig, attachTo: optInElement});
+  check(optIn.plugins.has('FullPage'), 'FullPage opt-in failed');
+  check(optIn.plugins.has('ImageInsert'), 'ImageInsert opt-in failed');
+  check(optIn.ui.componentFactory.has('insertImage'), 'ImageInsert toolbar component missing');
   const markdownElement = document.querySelector('#markdown');
   const markdown = await ClassicEditor.create({
     ...CRM.wysiwyg.getConfig(markdownElement, false), attachTo: markdownElement
@@ -112,7 +168,7 @@ window.CRM = {$, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
     }
     check(getComputedStyle(editor.ui.view.toolbar.element).display === 'flex', 'Toolbar CSS did not load');
   }
-  window.sharedBuildEditors = {base64, elfinder, markdown};
+  window.sharedBuildEditors = {base64, elfinder, optIn, markdown};
   window.sharedBuildTest = {passed: true, version: window.CKEDITOR_VERSION, html: base64.getData()};
   document.querySelector('#result').textContent = 'PASS: HTML and Markdown modes initialize; Base64 validation succeeds.';
 })().catch(error => {

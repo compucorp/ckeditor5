@@ -27,8 +27,12 @@ function harness(settings = {}, listener = () => {}, browser = {}) {
     return {then() { return {catch() {}}; }};
   }};
   const CRM = {$, _: {}, wysiwyg: {}, config: {locale: 'en_US', ...settings}};
-  const window = {ClassicEditor, ...browser.window};
-  const context = {CRM, ClassicEditor, window};
+  const window = {
+    ClassicEditor,
+    location: {href: 'https://example.test/civicrm', origin: 'https://example.test'},
+    ...browser.window
+  };
+  const context = {CRM, ClassicEditor, window, URL};
   if (browser.DOMParser) context.DOMParser = browser.DOMParser;
   if (browser.document) context.document = browser.document;
   vm.runInNewContext(fs.readFileSync(`${__dirname}/../js/wysiwyg/crm.ckeditor5.js`, 'utf8'), context);
@@ -209,6 +213,9 @@ test('lot 1 features use safe shared defaults', () => {
   assert.ok(config.toolbar.items.includes('fullscreen'));
   assert.ok(config.toolbar.items.includes('insertTable'));
   assert.ok(!config.toolbar.items.includes('insertTableLayout'));
+  for (const optionalButton of ['bookmark', 'emoji', 'showBlocks', 'textPartLanguage', 'todoList', 'toggleTableCaption', 'insertImage']) {
+    assert.ok(!config.toolbar.items.includes(optionalButton));
+  }
   assert.equal(config.findAndReplace.uiType, 'dialog');
   assert.equal(config.fullscreen.menuBar.isVisible, false);
   assert.equal(config.fullscreen.toolbar.shouldNotGroupWhenFull, true);
@@ -239,6 +246,27 @@ test('HTML presets accept Markdown paste without changing their output format', 
 test('companion extensions can discover an initialized editor without a hard dependency', () => {
   const create = harness();
   assert.equal(typeof create.CRM.ckeditor5.getInstance, 'function');
+});
+
+test('companion extensions can enable inactive plugins from the shared bundle per field', () => {
+  class FullPage {}
+  FullPage.pluginName = 'FullPage';
+  const create = harness({}, () => {}, {window: {CKEDITOR: {FullPage}}});
+  const config = create('fullpage').config;
+  assert.ok(!config.extraPlugins.includes(FullPage));
+  assert.equal(create.CRM.ckeditor5.enableBundledPlugin(config, 'FullPage'), FullPage);
+  assert.equal(config.extraPlugins.filter(plugin => plugin === FullPage).length, 1);
+  create.CRM.ckeditor5.enableBundledPlugin(config, 'FullPage');
+  assert.equal(config.extraPlugins.filter(plugin => plugin === FullPage).length, 1);
+  assert.throws(
+    () => create.CRM.ckeditor5.enableBundledPlugin(config, 'MissingPlugin'),
+    /bundled plugin "MissingPlugin" is not available/
+  );
+});
+
+test('emoji definitions use the self-hosted asset configured by CiviCRM', () => {
+  const config = harness({CKEditor5EmojiDefinitions: '/civicrm/ext/ckeditor5/js/ckeditor5/emoji/16/en.json'})().config;
+  assert.equal(config.emoji.definitionsUrl, 'https://example.test/civicrm/ext/ckeditor5/js/ckeditor5/emoji/16/en.json');
 });
 
 test('the Markdown preset stores Markdown and disables file handling', () => {

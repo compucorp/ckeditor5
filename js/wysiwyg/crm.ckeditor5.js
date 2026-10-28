@@ -16,6 +16,26 @@
   ]);
   let pluginAssetsPromise;
 
+  /**
+   * Allow the standalone elFinder window to receive focus from inside a
+   * modal CiviCRM popup. CiviCRM's jQuery UI dialog focus trap otherwise
+   * immediately returns keyboard focus to the parent popup.
+   */
+  function allowElFinderDialogInteraction() {
+    const dialogPrototype = $.ui && $.ui.dialog && $.ui.dialog.prototype;
+    if (!dialogPrototype || typeof dialogPrototype._allowInteraction !== 'function') return;
+
+    const currentAllowInteraction = dialogPrototype._allowInteraction;
+    if (currentAllowInteraction.crmCkeditor5AllowsElFinder === true) return;
+
+    const allowInteraction = function(event) {
+      if ($(event.target).closest('.dialogelfinder').length) return true;
+      return currentAllowInteraction.call(this, event);
+    };
+    allowInteraction.crmCkeditor5AllowsElFinder = true;
+    dialogPrototype._allowInteraction = allowInteraction;
+  }
+
   CRM.ckeditor5 = CRM.ckeditor5 || {};
 
   /**
@@ -53,6 +73,33 @@
 
   CRM.ckeditor5.getRegisteredPlugins = function() {
     return Object.assign({}, registeredPlugins);
+  };
+
+  /**
+   * Enable a plugin constructor already exposed by the shared CKEditor bundle.
+   *
+   * This is intended for per-field crmCkeditor5Config listeners. It does not
+   * add the plugin to the default editor build or to any saved preset.
+   *
+   * @param {object} editorConfig
+   * @param {string} name
+   * @return {Function}
+   */
+  CRM.ckeditor5.enableBundledPlugin = function(editorConfig, name) {
+    if (!editorConfig || typeof editorConfig !== 'object') {
+      throw new TypeError('A CKEditor configuration object is required.');
+    }
+    if (typeof name !== 'string' || !name.trim()) {
+      throw new TypeError('A bundled CKEditor plugin name is required.');
+    }
+    const pluginConstructor = window.CKEDITOR && window.CKEDITOR[name];
+    if (typeof pluginConstructor !== 'function' || typeof pluginConstructor.pluginName !== 'string') {
+      throw new Error(`CKEditor 5 bundled plugin "${name}" is not available.`);
+    }
+    const plugins = Array.isArray(editorConfig.extraPlugins) ? editorConfig.extraPlugins.slice() : [];
+    if (!plugins.includes(pluginConstructor)) plugins.push(pluginConstructor);
+    editorConfig.extraPlugins = plugins;
+    return pluginConstructor;
   };
 
   /**
@@ -1040,6 +1087,11 @@
       findAndReplace: {
         uiType: 'dialog'
       },
+      emoji: {
+        definitionsUrl: CRM.config.CKEditor5EmojiDefinitions
+          ? localAssetUrl(CRM.config.CKEditor5EmojiDefinitions)
+          : undefined
+      },
       fullscreen: {
         menuBar: {isVisible: false},
         toolbar: {shouldNotGroupWhenFull: true},
@@ -1254,6 +1306,9 @@
     if (editorConfig.civiRawHtmlMode === true) {
       editorConfig.htmlEmbed = mergeConfig({showPreviews: true}, editorConfig.htmlEmbed || {});
     }
+    if (CRM.ckeditor5.tokenPicker && typeof CRM.ckeditor5.tokenPicker.configureMention === 'function') {
+      CRM.ckeditor5.tokenPicker.configureMention(editorConfig);
+    }
 
     // Markdown output is opt-in because it replaces CKEditor's HTML data
     // processor. Markdown paste can remain enabled with the HTML processor,
@@ -1424,6 +1479,8 @@
      * @param editor
      */
     function onReadyElFinder(editor) {
+      allowElFinderDialogInteraction();
+
       // elfinder folder hash of the destination folder to be uploaded in this CKeditor 5
       const uploadTargetHash = 'l1_Lw';
       // elFinder connector URL
@@ -1633,8 +1690,11 @@
         }, 50);
       });
 
-      // Update source element on blur; especially important for javascript-based UIs
-      editor.editing.view.document.on('blur', function() {
+      // The editable itself loses focus when CKEditor opens contextual UI such
+      // as the link balloon. Only notify CiviCRM after the entire editor UI has
+      // lost focus, otherwise collapsed fields close while their dialogs are in use.
+      editor.ui.focusTracker.on('change:isFocused', function(evt, name, isFocused) {
+        if (isFocused) return;
         if (debounce) clearTimeout(debounce);
         syncActiveRawTextarea(editor);
         editor.updateSourceElement();
