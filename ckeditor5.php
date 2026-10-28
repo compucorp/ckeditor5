@@ -31,6 +31,41 @@ function ckeditor5_civicrm_enable() {
 }
 
 /**
+ * Implements hook_civicrm_buildForm().
+ */
+function ckeditor5_civicrm_buildForm($formName, &$form) {
+  if ($formName !== 'CRM_Admin_Form_Preferences_Display') {
+    return;
+  }
+  $form->addElement(
+    'xbutton',
+    'ckeditor5_config',
+    CRM_Core_Page::crmIcon('fa-wrench') . ' ' . E::ts('Configure CKEditor 5'),
+    [
+      'type' => 'submit',
+      'class' => 'crm-button',
+      'style' => 'display:inline-block;vertical-align:middle;float:none!important;',
+      'value' => 1,
+    ]
+  );
+  CRM_Core_Region::instance('form-bottom')->add([
+    'template' => 'CRM/Admin/Form/Preferences/Ckeditor5.tpl',
+  ]);
+}
+
+/**
+ * Implements hook_civicrm_postProcess().
+ */
+function ckeditor5_civicrm_postProcess($formName, &$form) {
+  if ($formName !== 'CRM_Admin_Form_Preferences_Display' || empty($form->_submitValues['ckeditor5_config'])) {
+    return;
+  }
+  $session = CRM_Core_Session::singleton();
+  $session->getStatus(TRUE);
+  $session->pushUserContext(CRM_Utils_System::url('civicrm/admin/ckeditor5', 'reset=1'));
+}
+
+/**
  * Implements hook_civicrm_alterSettingsFolders().
  */
 function ckeditor5_civicrm_alterSettingsFolders(&$folders) {
@@ -48,58 +83,52 @@ function ckeditor5_civicrm_alterSettingsFolders(&$folders) {
  * @param array $region
  */
 function ckeditor5_civicrm_coreResourceList(&$items, $region) {
-  if ($region === 'html-header') {
-    if (in_array(Civi::settings()->get('editor_id'), ['CKEditor5-elfinder', 'CKEditor5-base64'], TRUE)) {
-      $items[] = ['config' => [
-        'CKEditor5AdminPresets' => (object) (Civi::settings()->get('ckeditor5_presets') ?: []),
-        'CKEditor5CorePluginAssets' => [[
-          'name' => 'civi-tokens',
-          'scripts' => [CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/plugins/civi-tokens.js', TRUE)],
-          'plugins' => ['CiviTokens'],
-        ]],
-      ]];
-    }
-    if (Civi::settings()->get('editor_id') === 'CKEditor5-elfinder') {
-      $locale = CRM_Core_I18n::getLocale();
-      $lang = substr($locale, 0, 2);
-      $canUseElFinder = CRM_Core_Permission::check('access CiviCRM')
-        && CRM_Core_Permission::check('access uploaded files');
-
-      $items[] = [
-        'config' => [
-          'CKEditor5Language' => ($lang != 'en' ? CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/ckeditor5/ckeditor-classic-build/build/translations/' . $lang . '.js', TRUE) : ''),
-          'wysisygScriptLocation' => CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/wysiwyg/crm.ckeditor5.js', TRUE),
-          // Both upload modes use the same compiled editor.
-          'CKEditor5Location' => CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/ckeditor5/ckeditor-classic-build/build/ckeditor.js', TRUE),
-          'ELFinderLocation' => $canUseElFinder ? CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/elFinder/js/elfinder.min.js', TRUE) : NULL,
-          'CKEditor5UploadMode' => $canUseElFinder ? 'elfinder' : 'none',
-        ],
-      ];
-      if ($canUseElFinder) {
-        CRM_Core_Resources::singleton()->addStyleUrl(CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/elFinder/css/elfinder.min.css', TRUE));
-        CRM_Core_Resources::singleton()->addStyleUrl(CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/elFinder/css/theme.css', TRUE));
-      }
-      CRM_Core_Resources::singleton()->addStyleUrl(CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'css/ckeditor.css', TRUE));
-    }
-
-    if (Civi::settings()->get('editor_id') === 'CKEditor5-base64') {
-      $locale = CRM_Core_I18n::getLocale();
-      $lang = substr($locale, 0, 2);
-
-      $items[] = [
-        'config' => [
-          'CKEditor5Language' => ($lang != 'en' ? CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/ckeditor5/ckeditor-classic-build/build/translations/' . $lang . '.js', TRUE) : ''),
-          'wysisygScriptLocation' => CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/wysiwyg/crm.ckeditor5.js', TRUE),
-          // Both upload modes use the same compiled editor.
-          'CKEditor5Location' => CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'js/ckeditor5/ckeditor-classic-build/build/ckeditor.js', TRUE),
-          'ELFinderLocation' => NULL,
-          'CKEditor5UploadMode' => 'base64',
-        ],
-      ];
-      CRM_Core_Resources::singleton()->addStyleUrl(CRM_Core_Resources::singleton()->getUrl('ckeditor5', 'css/ckeditor.css', TRUE));
-    }
-
+  if ($region !== 'html-header') {
+    return;
   }
+
+  $editorId = Civi::settings()->get('editor_id');
+  if (!CRM_Ckeditor5_EditorRegistration::supports($editorId)) {
+    return;
+  }
+
+  $legacyUploadMode = CRM_Ckeditor5_EditorRegistration::legacyUploadMode($editorId);
+  $presets = Civi::settings()->get('ckeditor5_presets') ?: [];
+
+  $locale = CRM_Core_I18n::getLocale();
+  $lang = substr($locale, 0, 2);
+  $canUpload = CRM_Core_Permission::check('access CiviCRM')
+    && CRM_Core_Permission::check('access uploaded files');
+  $canUseElFinder = $canUpload && $legacyUploadMode !== 'base64';
+  $uploadMode = $canUpload ? ($legacyUploadMode ?: 'elfinder') : 'none';
+  $resources = CRM_Core_Resources::singleton();
+
+  $items[] = ['config' => [
+    'CKEditor5AdminPresets' => (object) $presets,
+    'CKEditor5CorePluginAssets' => [[
+      'name' => 'civi-tokens',
+      'scripts' => [$resources->getUrl('ckeditor5', 'js/plugins/civi-tokens.js', TRUE)],
+      'plugins' => ['CiviTokens'],
+    ]],
+    'CKEditor5Language' => ($lang !== 'en' ? $resources->getUrl('ckeditor5', 'js/ckeditor5/ckeditor-classic-build/build/translations/' . $lang . '.js', TRUE) : ''),
+    'wysisygScriptLocation' => $resources->getUrl('ckeditor5', 'js/wysiwyg/crm.ckeditor5.js', TRUE),
+    'CKEditor5Location' => $resources->getUrl('ckeditor5', 'js/ckeditor5/ckeditor-classic-build/build/ckeditor.js', TRUE),
+    'ELFinderLocation' => $canUseElFinder ? $resources->getUrl('ckeditor5', 'js/elFinder/js/elfinder.min.js', TRUE) : NULL,
+    'CKEditor5Stylesheets' => [
+      $resources->getUrl('ckeditor5', 'css/ckeditor.css', TRUE),
+    ],
+    'ELFinderStylesheets' => $canUseElFinder ? [
+      $resources->getUrl('ckeditor5', 'js/elFinder/css/elfinder.min.css', TRUE),
+      $resources->getUrl('ckeditor5', 'js/elFinder/css/theme.css', TRUE),
+    ] : [],
+    'CKEditor5UploadMode' => $uploadMode,
+  ]];
+
+  if ($canUseElFinder) {
+    $resources->addStyleUrl($resources->getUrl('ckeditor5', 'js/elFinder/css/elfinder.min.css', TRUE));
+    $resources->addStyleUrl($resources->getUrl('ckeditor5', 'js/elFinder/css/theme.css', TRUE));
+  }
+  $resources->addStyleUrl($resources->getUrl('ckeditor5', 'css/ckeditor.css', TRUE));
 }
 
 /**
