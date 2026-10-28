@@ -20,6 +20,16 @@ class CRM_Ckeditor5_EditorRegistration {
   }
 
   /**
+   * Advertise support for fields which store GitHub Flavored Markdown.
+   *
+   * Companion extensions may feature-detect this method without declaring a
+   * hard dependency on CKEditor 5.
+   */
+  public static function supportsMarkdown() {
+    return TRUE;
+  }
+
+  /**
    * Return the upload mode encoded by a legacy editor identifier.
    */
   public static function legacyUploadMode($editorId) {

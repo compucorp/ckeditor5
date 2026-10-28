@@ -954,6 +954,8 @@
     }
   }
 
+  CRM.ckeditor5.getInstance = getInstance;
+
   /**
    * Build the shared editor configuration.
    *
@@ -1017,6 +1019,9 @@
 
     let editorConfig = {
       htmlSupport: presentationHtmlSupport(),
+      civiDataFormat: 'html',
+      civiPasteMarkdown: true,
+      removePlugins: ['Markdown'],
       extraPlugins: emailSafePreset
         ? [preserveTemplateStyles, emailImageOutput]
         : [preserveTemplateStyles],
@@ -1182,6 +1187,23 @@
       formbuilder: {
         civiHtmlRuleset: 'strict',
         toolbar: {items: ['heading', '|', 'bold', 'italic', 'link', '|', 'bulletedList', 'numberedList', '|', 'imageUpload', '|', 'undo', 'redo']}
+      },
+      markdown: {
+        civiDataFormat: 'markdown',
+        civiHtmlQa: {enabled: false},
+        civiPreserveTemplateStyles: false,
+        civiUploadMode: 'none',
+        toolbar: {
+          items: [
+            'heading', '|',
+            'bold', 'italic', 'strikethrough', 'link', '|',
+            'bulletedList', 'numberedList', 'blockQuote', '|',
+            'sourceEditing', 'undo', 'redo'
+          ]
+        },
+        table: {
+          contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells']
+        }
       }
     };
     const hasConfig = (registry, name) => Object.prototype.hasOwnProperty.call(registry, name)
@@ -1232,6 +1254,20 @@
     if (editorConfig.civiRawHtmlMode === true) {
       editorConfig.htmlEmbed = mergeConfig({showPreviews: true}, editorConfig.htmlEmbed || {});
     }
+
+    // Markdown output is opt-in because it replaces CKEditor's HTML data
+    // processor. Markdown paste can remain enabled with the HTML processor,
+    // where pasted Markdown is converted to rich text and saved as HTML.
+    const configuredPlugins = Array.isArray(editorConfig.removePlugins)
+      ? editorConfig.removePlugins.slice()
+      : [];
+    const pluginName = plugin => typeof plugin === 'string' ? plugin : plugin && plugin.pluginName;
+    const withoutPlugin = name => configuredPlugins.filter(plugin => pluginName(plugin) !== name);
+    let normalizedPlugins = withoutPlugin('Markdown');
+    if (editorConfig.civiDataFormat !== 'markdown') normalizedPlugins.push('Markdown');
+    normalizedPlugins = normalizedPlugins.filter(plugin => pluginName(plugin) !== 'PasteFromMarkdownExperimental');
+    if (editorConfig.civiPasteMarkdown === false) normalizedPlugins.push('PasteFromMarkdownExperimental');
+    editorConfig.removePlugins = normalizedPlugins;
 
     // Named size presets cannot be combined with CKEditor's supportAllValues.
     // Keep existing site configurations using tiny/small/big/huge operational.

@@ -12,6 +12,7 @@ check(CRM_Ckeditor5_EditorRegistration::supports('CKEditor5'), 'The canonical ed
 check(CRM_Ckeditor5_EditorRegistration::supports('CKEditor5-elfinder'), 'The elFinder alias must remain supported.');
 check(CRM_Ckeditor5_EditorRegistration::supports('CKEditor5-base64'), 'The Base64 alias must remain supported.');
 check(!CRM_Ckeditor5_EditorRegistration::supports('CKEditor'), 'Unrelated editors must not be claimed.');
+check(CRM_Ckeditor5_EditorRegistration::supportsMarkdown(), 'The editor must advertise Markdown field support.');
 check(CRM_Ckeditor5_EditorRegistration::legacyUploadMode('CKEditor5') === NULL, 'The canonical editor must not encode an upload mode.');
 check(CRM_Ckeditor5_EditorRegistration::legacyUploadMode('CKEditor5-elfinder') === 'elfinder', 'The elFinder alias must retain its mode.');
 check(CRM_Ckeditor5_EditorRegistration::legacyUploadMode('CKEditor5-base64') === 'base64', 'The Base64 alias must retain its mode.');

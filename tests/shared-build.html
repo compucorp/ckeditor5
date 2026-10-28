@@ -8,6 +8,7 @@
 <p>This standalone test checks plugin activation and Base64 conversion, not the CiviCRM connector.</p>
 <h2>Base64</h2><div id="base64"><p>Base64 mode</p></div>
 <h2>elFinder plugin configuration</h2><div id="elfinder"><p>elFinder mode</p></div>
+<h2>Markdown</h2><div id="markdown" data-preset="markdown">## Markdown mode</div>
 <pre id="result">Running</pre>
 <script src="../js/ckeditor5/ckeditor-classic-build/build/ckeditor.js"></script>
 <script>
@@ -82,6 +83,18 @@ window.CRM = {$, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
   check(!elfinder.plugins.has('Base64UploadAdapter'), 'Base64 must be disabled');
   check(elfinder.plugins.has('CiviFileManager'), 'File manager integration missing');
   check(elfinder.config.get('toolbar.items').includes('civiFileManager'), 'File manager button missing');
+  const markdownElement = document.querySelector('#markdown');
+  const markdown = await ClassicEditor.create({
+    ...CRM.wysiwyg.getConfig(markdownElement, false), attachTo: markdownElement
+  });
+  check(markdown.plugins.has('Markdown'), 'Markdown data processor missing');
+  check(markdown.plugins.has('PasteFromMarkdownExperimental'), 'Markdown paste plugin missing');
+  check(!markdown.plugins.has('ImageUpload'), 'Markdown preset must not load image uploads');
+  markdown.setData('## Heading\n\nThis is **bold** and [linked](https://civicrm.org).');
+  check(
+    markdown.getData() === '## Heading\n\nThis is **bold** and [linked](https://civicrm.org).',
+    'Markdown data was not preserved'
+  );
   // Presentation preservation uses email-compatible tables without a figure.
   const source = '<h2>Title</h2><p><strong>Bold</strong> <span style="color:#0000ff;">Blue</span></p><table><tbody><tr><td style="background-color:#ff0000;">Cell</td></tr></tbody></table>';
   const expected = source.replace('<table>', '<table class="table content-table">');
@@ -99,9 +112,9 @@ window.CRM = {$, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
     }
     check(getComputedStyle(editor.ui.view.toolbar.element).display === 'flex', 'Toolbar CSS did not load');
   }
-  window.sharedBuildEditors = {base64, elfinder};
+  window.sharedBuildEditors = {base64, elfinder, markdown};
   window.sharedBuildTest = {passed: true, version: window.CKEDITOR_VERSION, html: base64.getData()};
-  document.querySelector('#result').textContent = 'PASS: both modes initialize; Base64 validation succeeds.';
+  document.querySelector('#result').textContent = 'PASS: HTML and Markdown modes initialize; Base64 validation succeeds.';
 })().catch(error => {
   window.sharedBuildTest = {passed: false, error: error.message};
   document.querySelector('#result').textContent = 'FAIL: ' + error.message;

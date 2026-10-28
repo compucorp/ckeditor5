@@ -249,6 +249,29 @@ CRM.$(document).on('crmCkeditor5Config', function(event, config, context) {
 The listener may alter any option supported by the plugins already included in
 the selected CKEditor build.
 
+### Markdown input and output
+
+The shared build includes CKEditor's open-source Markdown data processor and
+experimental Markdown paste support. HTML remains the default storage format.
+Markdown pasted into a normal editor is converted to rich text and exported as
+HTML. Set `civiPasteMarkdown: false` in a preset to disable this behavior.
+
+The built-in `markdown` preset instead uses GitHub Flavored Markdown for both
+input and output. It disables file uploads, HTML QA, and email-template
+preservation, and limits the toolbar to features with useful Markdown output.
+Select it on a CiviCRM WYSIWYG field with `preset => 'markdown'`:
+
+```php
+$form->add('wysiwyg', 'message', ts('Message'), [
+  'preset' => 'markdown',
+  'rows' => 10,
+]);
+```
+
+The Source button displays Markdown in this preset. Applications using it must
+continue treating the saved value as Markdown; it is not HTML and must be
+rendered or escaped appropriately outside the editor.
+
 ### Loading extension plugins without rebuilding the shared bundle
 
 An extension can load local JavaScript and CSS after the shared CKEditor runtime

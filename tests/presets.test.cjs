@@ -95,7 +95,7 @@ for (const useElFinder of [false, true]) {
     });
     const config = create('civimail').config;
     assert.deepEqual(plain(config.removePlugins), useElFinder
-      ? ['MediaEmbed', 'Base64UploadAdapter'] : ['MediaEmbed']);
+      ? ['MediaEmbed', 'Markdown', 'Base64UploadAdapter'] : ['MediaEmbed', 'Markdown']);
     assert.deepEqual(plain(config.toolbar), useElFinder ? ['bold', 'civiFileManager'] : ['bold']);
   });
 }
@@ -226,6 +226,49 @@ test('lot 1 features use safe shared defaults', () => {
   assert.equal(config.table.tableProperties.alignment.useInlineStyles, true);
   assert.equal(harness()('civimail').config.table.tableProperties.alignment.useInlineStyles, true);
   assert.equal(harness()('civievent').config.table.tableProperties.alignment.useInlineStyles, false);
+});
+
+test('HTML presets accept Markdown paste without changing their output format', () => {
+  const config = harness()().config;
+  assert.equal(config.civiDataFormat, 'html');
+  assert.equal(config.civiPasteMarkdown, true);
+  assert.ok(config.removePlugins.includes('Markdown'));
+  assert.ok(!config.removePlugins.includes('PasteFromMarkdownExperimental'));
+});
+
+test('companion extensions can discover an initialized editor without a hard dependency', () => {
+  const create = harness();
+  assert.equal(typeof create.CRM.ckeditor5.getInstance, 'function');
+});
+
+test('the Markdown preset stores Markdown and disables file handling', () => {
+  const result = harness({ELFinderLocation: '/elfinder.js', CKEditor5UploadMode: 'elfinder'})('markdown');
+  assert.equal(result.context.preset, 'markdown');
+  assert.equal(result.context.resolvedPreset, 'markdown');
+  assert.equal(result.config.civiDataFormat, 'markdown');
+  assert.equal(result.config.civiUploadMode, 'none');
+  assert.equal(result.config.civiHtmlQa.enabled, false);
+  assert.equal(result.config.civiPreserveTemplateStyles, false);
+  assert.ok(!result.config.removePlugins.includes('Markdown'));
+  assert.ok(!result.config.removePlugins.includes('PasteFromMarkdownExperimental'));
+  assert.ok(result.config.removePlugins.includes('ImageUpload'));
+  assert.ok(result.config.removePlugins.includes('Base64UploadAdapter'));
+  assert.deepEqual(plain(result.config.toolbar.items), [
+    'heading', '|',
+    'bold', 'italic', 'strikethrough', 'link', '|',
+    'bulletedList', 'numberedList', 'blockQuote', '|',
+    'sourceEditing', 'undo', 'redo'
+  ]);
+  assert.ok(!result.config.toolbar.items.includes('imageUpload'));
+  assert.deepEqual(plain(result.config.table.contentToolbar), ['tableColumn', 'tableRow', 'mergeTableCells']);
+});
+
+test('Markdown paste can be disabled by a preset', () => {
+  const config = harness({
+    CKEditor5Presets: {plain: {civiPasteMarkdown: false}}
+  })('plain').config;
+  assert.ok(config.removePlugins.includes('Markdown'));
+  assert.ok(config.removePlugins.includes('PasteFromMarkdownExperimental'));
 });
 
 test('the sticky toolbar stays below stacked Drupal and CiviCRM menus', () => {
