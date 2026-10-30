@@ -1681,7 +1681,6 @@
             if (debounce) clearTimeout(debounce);
             debounce = setTimeout(function() {
               editor.updateSourceElement();
-              $(item).trigger('change');
             }, 50);
           }
         });
@@ -1694,7 +1693,6 @@
         if (debounce) clearTimeout(debounce);
         debounce = setTimeout(function() {
           editor.updateSourceElement();
-          $(item).trigger("change");
         }, 50);
       });
 
