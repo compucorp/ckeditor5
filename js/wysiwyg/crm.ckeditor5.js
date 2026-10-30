@@ -1486,16 +1486,23 @@
       const fileRepo = canUploadFiles && editor.plugins.has('FileRepository')
         ? editor.plugins.get('FileRepository')
         : null;
-      const ntf = editor.plugins.get('Notification'),
-        i18 = editor.locale.t,
+      const ntf = editor.plugins.has('Notification')
+        ? editor.plugins.get('Notification')
+        : null;
+      const i18 = editor.locale.t,
         // Insert images to editor window
         insertImages = urls => {
           const imgCmd = editor.commands.get('imageInsert');
           if (!imgCmd || !imgCmd.isEnabled) {
-            ntf.showWarning(i18('Could not insert image at the current position.'), {
-              title: i18('Inserting image failed'),
-              namespace: 'civiFileManager'
-            });
+            if (ntf) {
+              ntf.showWarning(i18('Could not insert image at the current position.'), {
+                title: i18('Inserting image failed'),
+                namespace: 'civiFileManager'
+              });
+            }
+            else {
+              console.warn('CKEditor 5 could not insert the selected image at the current position.');
+            }
             return;
           }
           editor.execute('imageInsert', { source: urls });
