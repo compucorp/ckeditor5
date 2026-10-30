@@ -3,6 +3,8 @@
 require_once 'ckeditor5.civix.php';
 use CRM_Ckeditor5_ExtensionUtil as E;
 
+const CKEDITOR5_PERMISSION_UPLOAD_IMAGES = 'upload CKEditor 5 images';
+
 /**
  * Implements hook_civicrm_config().
  *
@@ -28,6 +30,17 @@ function ckeditor5_civicrm_install() {
  */
 function ckeditor5_civicrm_enable() {
   _ckeditor5_civix_civicrm_enable();
+}
+
+/**
+ * Implements hook_civicrm_permission().
+ */
+function ckeditor5_civicrm_permission(array &$permissions): void {
+  $permissions[CKEDITOR5_PERMISSION_UPLOAD_IMAGES] = [
+    'label' => E::ts('CKEditor 5: upload images'),
+    'description' => E::ts('Upload images directly from CKEditor 5. This does not grant access to browse existing uploaded files.'),
+    'implied_by' => ['administer CiviCRM'],
+  ];
 }
 
 /**
@@ -98,7 +111,7 @@ function ckeditor5_civicrm_coreResourceList(&$items, $region) {
   $locale = CRM_Core_I18n::getLocale();
   $lang = substr($locale, 0, 2);
   $canAccessCivi = CRM_Core_Permission::check('access CiviCRM');
-  $canUpload = $canAccessCivi && CRM_Core_Permission::check('upload files');
+  $canUpload = $canAccessCivi && CRM_Core_Permission::check(CKEDITOR5_PERMISSION_UPLOAD_IMAGES);
   $canBrowse = $canAccessCivi && CRM_Core_Permission::check('access uploaded files');
   $canUseElFinder = $canBrowse && $legacyUploadMode !== 'base64';
   $uploadMode = $canUpload ? ($legacyUploadMode ?: 'elfinder') : 'none';

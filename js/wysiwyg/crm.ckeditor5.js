@@ -1058,10 +1058,6 @@
       'fullscreen'
     ];
 
-    if (useElFinder) {
-      toolbarItems.splice(toolbarItems.indexOf('imageUpload') + 1, 0, 'civiFileManager');
-    }
-
     const emailSafePreset = preset === 'default' || preset === 'civimail';
 
     let editorConfig = {
@@ -1234,7 +1230,7 @@
     const contextPresets = {
       frontend: {
         civiHtmlRuleset: 'strict',
-        toolbar: {items: ['heading', '|', 'bold', 'italic', 'link', '|', 'bulletedList', 'numberedList', '|', 'imageUpload', 'civiFileManager', '|', 'undo', 'redo']}
+        toolbar: {items: ['heading', '|', 'bold', 'italic', 'link', '|', 'bulletedList', 'numberedList', '|', 'imageUpload', '|', 'undo', 'redo']}
       },
       formbuilder: {
         civiHtmlRuleset: 'strict',
@@ -1486,8 +1482,11 @@
       // elFinder connector URL
       const connectorUrl = CRM.url('civicrm/ckeditor5/image-manager', null, 'back');
       const canBrowseFiles = CRM.config.CKEditor5CanBrowseFiles === true;
-      const fileRepo = editor.plugins.get('FileRepository'),
-        ntf = editor.plugins.get('Notification'),
+      const canUploadFiles = CRM.config.CKEditor5CanUploadFiles === true;
+      const fileRepo = canUploadFiles && editor.plugins.has('FileRepository')
+        ? editor.plugins.get('FileRepository')
+        : null;
+      const ntf = editor.plugins.get('Notification'),
         i18 = editor.locale.t,
         // Insert images to editor window
         insertImages = urls => {
@@ -1648,9 +1647,11 @@
       };
 
       // Set up image uploader
-      fileRepo.createUploadAdapter = loader => {
-        return new uploder(loader);
-      };
+      if (fileRepo) {
+        fileRepo.createUploadAdapter = loader => {
+          return new uploder(loader);
+        };
+      }
       onReady(editor);
     }
 

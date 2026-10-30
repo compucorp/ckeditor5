@@ -70,6 +70,10 @@ class CRM_Core_I18n {
 
 }
 
+function ts($text, $params = []) {
+  return $text;
+}
+
 class CRM_Core_Permission {
 
   public static $allowed = [];
@@ -104,6 +108,12 @@ Civi::$settings = new TestSettings();
 CRM_Core_Resources::$instance = new CRM_Core_Resources();
 require_once __DIR__ . '/../ckeditor5.php';
 
+$permissions = [];
+ckeditor5_civicrm_permission($permissions);
+check(isset($permissions[CKEDITOR5_PERMISSION_UPLOAD_IMAGES]), 'The image upload permission must be registered.');
+check($permissions[CKEDITOR5_PERMISSION_UPLOAD_IMAGES]['implied_by'] === ['administer CiviCRM'], 'CiviCRM administrators must inherit image upload permission.');
+check(str_contains($permissions[CKEDITOR5_PERMISSION_UPLOAD_IMAGES]['description'], 'does not grant access to browse'), 'The upload permission must remain distinct from file browsing.');
+
 function resourcesFor($editorId, $canUpload, array $presets = [], $canBrowse = NULL) {
   Civi::$settings->values = [
     'editor_id' => $editorId,
@@ -111,7 +121,7 @@ function resourcesFor($editorId, $canUpload, array $presets = [], $canBrowse = N
   ];
   CRM_Core_Permission::$allowed = [
     'access CiviCRM' => TRUE,
-    'upload files' => $canUpload,
+    CKEDITOR5_PERMISSION_UPLOAD_IMAGES => $canUpload,
     'access uploaded files' => $canBrowse ?? $canUpload,
   ];
   CRM_Core_Resources::$instance = new CRM_Core_Resources();
