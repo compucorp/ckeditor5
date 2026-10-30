@@ -135,6 +135,7 @@ function ckeditor5_civicrm_coreResourceList(&$items, $region) {
     'ELFinderStylesheets' => $canUseElFinder ? [
       $resources->getUrl('ckeditor5', 'js/elFinder/css/elfinder.min.css', TRUE),
       $resources->getUrl('ckeditor5', 'js/elFinder/css/theme.css', TRUE),
+      $resources->getUrl('ckeditor5', 'css/elfinder-light.css', TRUE),
     ] : [],
     'CKEditor5UploadMode' => $uploadMode,
     'CKEditor5CanUploadFiles' => $canUpload,
@@ -144,6 +145,7 @@ function ckeditor5_civicrm_coreResourceList(&$items, $region) {
   if ($canUseElFinder) {
     $resources->addStyleUrl($resources->getUrl('ckeditor5', 'js/elFinder/css/elfinder.min.css', TRUE));
     $resources->addStyleUrl($resources->getUrl('ckeditor5', 'js/elFinder/css/theme.css', TRUE));
+    $resources->addStyleUrl($resources->getUrl('ckeditor5', 'css/elfinder-light.css', TRUE));
   }
   $resources->addStyleUrl($resources->getUrl('ckeditor5', 'css/ckeditor.css', TRUE));
 }

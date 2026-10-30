@@ -140,8 +140,9 @@ check($items[0]['config']['CKEditor5CanUploadFiles'] === TRUE, 'The canonical ed
 check($items[0]['config']['CKEditor5CanBrowseFiles'] === TRUE, 'The canonical editor must expose file browser permission.');
 check($items[0]['config']['ELFinderLocation'] !== NULL, 'The canonical editor must receive the elFinder runtime when permitted.');
 check($items[0]['config']['CKEditor5Stylesheets'] === ['/ext/ckeditor5/css/ckeditor.css'], 'The canonical editor must expose integration styles to late initializers.');
-check(count($items[0]['config']['ELFinderStylesheets']) === 2, 'The canonical editor must expose elFinder styles when permitted.');
-check(count($styles) === 3, 'The canonical editor must receive CKEditor and elFinder styles when permitted.');
+check(count($items[0]['config']['ELFinderStylesheets']) === 3, 'The canonical editor must expose elFinder styles when permitted.');
+check(str_contains($items[0]['config']['ELFinderStylesheets'][2], 'css/elfinder-light.css'), 'The CiviCRM light theme must load after the upstream elFinder styles.');
+check(count($styles) === 4, 'The canonical editor must receive CKEditor and elFinder styles when permitted.');
 check($items[0]['config']['CKEditor5AdminPresets']->default['toolbar']['items'] === ['bold'], 'Stored presets must be retained.');
 
 [$items, $styles] = resourcesFor('CKEditor5-base64', TRUE);
