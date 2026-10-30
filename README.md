@@ -2,7 +2,7 @@
 
 [Source repository and issue tracker](https://lab.civicrm.org/extensions/ckeditor5)
 
-![Screenshot](images/screenshot.png)
+![CKEditor 5 editing interface in CiviCRM](images/ckeditor5-editor.png)
 
 This extension provides CKEditor 5 as a CiviCRM WYSIWYG editor. CKEditor 5 is
 actively maintained and handles formatted content pasted from Word and Google
@@ -72,7 +72,7 @@ cv en ckeditor5
 After installation it is  available as an option under
 Administer->Customize Data and Screens->Display Preferences
 
-![Screenshot](images/enable.png)
+![Selecting and configuring CKEditor 5 in CiviCRM](images/ckeditor5-settings.png)
 
 ## Extending the editor configuration
 
