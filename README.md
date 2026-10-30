@@ -2,7 +2,7 @@
 
 [Source repository and issue tracker](https://lab.civicrm.org/extensions/ckeditor5)
 
-![Screenshot](images/screenshot.png)
+![CKEditor 5 editing interface in CiviCRM](images/ckeditor5-editor.png)
 
 This extension provides CKEditor 5 as a CiviCRM WYSIWYG editor. CKEditor 5 is
 actively maintained and handles formatted content pasted from Word and Google
@@ -72,7 +72,7 @@ cv en ckeditor5
 After installation it is  available as an option under
 Administer->Customize Data and Screens->Display Preferences
 
-![Screenshot](images/enable.png)
+![Selecting and configuring CKEditor 5 in CiviCRM](images/ckeditor5-settings.png)
 
 ## Extending the editor configuration
 
@@ -206,9 +206,11 @@ of configuration modified by another extension.
   recommended for presets shared with public or FormBuilder application forms).
 - Image uploads and file manager: choose `elfinder`, `base64` or `none` (disable
   image uploads and file browsing for the preset). Direct uploads require the
-  CMS `upload files` permission. Browsing existing images through elFinder
-  separately requires `access uploaded files`. Users without upload permission
-  use `none`, while the file-manager button follows its own browse permission.
+  portable CiviCRM `upload CKEditor 5 images` permission. Browsing existing
+  images through elFinder separately requires `access uploaded files`.
+  CiviCRM administrators inherit the upload permission; other roles must be
+  granted it explicitly. Users without upload permission use `none`, while the
+  file-manager button follows its own browse permission.
 - HTML QA mode: compare the HTML received when an editor opens with the HTML
   immediately exported by CKEditor. The per-editor report inventories removed
   and generated elements, attributes, classes, inline styles and stylesheet

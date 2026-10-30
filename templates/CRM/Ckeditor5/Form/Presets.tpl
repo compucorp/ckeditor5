@@ -66,7 +66,7 @@
     {$form.custom_upload_mode.html} {$form.custom_upload_mode.label}
     <div class="ck5-section" data-control="custom_upload_mode">
       {$form.upload_mode.label} {$form.upload_mode.html}
-      <p class="description">{ts}Uploading a new image requires the CMS upload files permission. Browsing existing server images separately requires access uploaded files. The selected preset may disable either control even when the user has permission.{/ts}</p>
+      <p class="description">{ts}Uploading a new image requires the CiviCRM permission "CKEditor 5: upload images". Browsing existing server images separately requires "access uploaded files". The selected preset may disable either control even when the user has permission.{/ts}</p>
     </div>
   </fieldset>
   <fieldset>

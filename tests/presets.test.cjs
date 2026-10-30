@@ -131,7 +131,7 @@ test('front-end and Form Builder fields use restricted fallbacks unless a preset
   assert.equal(publicField.context.uploadAdapter, 'elfinder');
   assert.equal(publicField.config.civiHtmlRuleset, 'strict');
   assert.ok(publicField.config.toolbar.items.includes('imageUpload'));
-  assert.ok(publicField.config.toolbar.items.includes('civiFileManager'));
+  assert.ok(!publicField.config.toolbar.items.includes('civiFileManager'));
 
   const formBuilder = frontend(undefined, {closest: selector => selector === 'civi-rich-text-input' ? {} : null});
   assert.equal(formBuilder.context.preset, 'formbuilder');
@@ -477,7 +477,10 @@ test('upload mode disables imageUpload and the CiviCRM file manager when unprivi
     CKEditor5UploadMode: 'elfinder',
     CKEditor5AdminPresets: {
       default: {civiUploadMode: 'none'},
-      civimail: {civiUploadMode: 'elfinder'}
+      civimail: {
+        civiUploadMode: 'elfinder',
+        toolbar: {items: ['imageUpload', 'civiFileManager']}
+      }
     }
   });
   const formEditor = restrictedPreset('default');
@@ -508,7 +511,10 @@ test('upload and file browser permissions control their toolbar buttons independ
     ELFinderLocation: '/elfinder.js',
     CKEditor5UploadMode: 'none',
     CKEditor5CanUploadFiles: false,
-    CKEditor5CanBrowseFiles: true
+    CKEditor5CanBrowseFiles: true,
+    CKEditor5AdminPresets: {
+      default: {toolbar: {items: ['civiFileManager']}}
+    }
   })('default');
   assert.equal(browseOnly.context.uploadAdapter, 'none');
   assert.ok(!browseOnly.config.toolbar.items.includes('imageUpload'));

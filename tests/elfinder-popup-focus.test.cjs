@@ -5,6 +5,7 @@ const vm = require('node:vm');
 
 test('elFinder is admitted by the CiviCRM modal dialog focus trap', async () => {
   let coreCalls = 0;
+  const errors = [];
   const dialogPrototype = {
     _allowInteraction(event) {
       coreCalls += 1;
@@ -47,11 +48,15 @@ test('elFinder is admitted by the CiviCRM modal dialog focus trap', async () => 
     sourceElement: {name: 'html_message', preset: 'civimail', value: '<p>Message</p>'},
     config: {get() { return false; }},
     commands: {get() { return {isEnabled: true}; }},
-    plugins: {get(name) {
-      if (name === 'FileRepository') return fileRepository;
-      if (name === 'Notification') return {showWarning() {}};
-      throw new Error(`Unexpected plugin: ${name}`);
-    }},
+    plugins: {
+      has(name) {
+        return name === 'FileRepository';
+      },
+      get(name) {
+        if (name === 'FileRepository') return fileRepository;
+        throw new Error(`Unexpected plugin: ${name}`);
+      }
+    },
     locale: {t(value) { return value; }},
     ui: {
       view: {element: {setAttribute() {}, addEventListener() {}}},
@@ -72,6 +77,7 @@ test('elFinder is admitted by the CiviCRM modal dialog focus trap', async () => 
     config: {
       locale: 'en_US',
       CKEditor5UploadMode: 'elfinder',
+      CKEditor5CanUploadFiles: true,
       CKEditor5CanBrowseFiles: true
     }
   };
@@ -90,11 +96,15 @@ test('elFinder is admitted by the CiviCRM modal dialog focus trap', async () => 
     Array,
     Set,
     WeakMap,
-    console
+    console: {
+      error(error) { errors.push(error); },
+      warn() {}
+    }
   });
 
   CRM.wysiwyg._create(editor.sourceElement);
   await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(errors, [], 'elFinder initialization must not require the optional Notification plugin');
 
   const installedAllowInteraction = dialogPrototype._allowInteraction;
   assert.equal(installedAllowInteraction({target: {withinElFinder: true}}), true);

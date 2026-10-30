@@ -55,9 +55,11 @@ Earlier advisories reviewed but not applicable to the old 41.0.0 build:
 ## Integration hardening
 
 The connector requires `access CiviCRM`. Direct uploads additionally require
-the CMS `upload files` permission, while browsing existing images requires
-`access uploaded files`. A user with browse access but no upload permission
-receives a read-only elFinder volume. The connector is configured with:
+the portable CiviCRM `upload CKEditor 5 images` permission, while browsing
+existing images requires `access uploaded files`. CiviCRM administrators
+inherit the upload permission. A user with browse access but no upload
+permission receives a read-only elFinder volume. The connector is configured
+with:
 
 - a strict image MIME allow-list (`bmp`, `gif`, `jpeg`, `png`, `webp`, `ico`);
 - disabled `mkfile`, `archive`, `extract`, `edit`, and `netmount` commands;

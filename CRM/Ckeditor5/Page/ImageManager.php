@@ -11,13 +11,17 @@ class CRM_Ckeditor5_Page_ImageManager extends CRM_Core_Page {
    */
   public function run() {
     $canAccessCivi = CRM_Core_Permission::check('access CiviCRM');
-    $canUpload = $canAccessCivi && CRM_Core_Permission::check('upload files');
+    $canUpload = $canAccessCivi && CRM_Core_Permission::check(CKEDITOR5_PERMISSION_UPLOAD_IMAGES);
     $canBrowse = $canAccessCivi && CRM_Core_Permission::check('access uploaded files');
+    $isDirectUploadTokenRequest = ($_SERVER['REQUEST_METHOD'] ?? NULL) === 'POST'
+      && ($_REQUEST['ckeditor5_direct_upload'] ?? NULL) === '1'
+      && ($_REQUEST['ckeditor5_csrf_init'] ?? NULL) === '1';
     $isDirectUpload = ($_SERVER['REQUEST_METHOD'] ?? NULL) === 'POST'
       && ($_REQUEST['cmd'] ?? NULL) === 'upload'
       && ($_REQUEST['ckeditor5_direct_upload'] ?? NULL) === '1';
 
-    if (($isDirectUpload && !$canUpload) || (!$isDirectUpload && !$canBrowse)) {
+    if ((($isDirectUpload || $isDirectUploadTokenRequest) && !$canUpload)
+      || (!$isDirectUpload && !$isDirectUploadTokenRequest && !$canBrowse)) {
       throw new CRM_Core_Exception('Permission denied');
     }
 
@@ -241,7 +245,21 @@ class CRM_Ckeditor5_Page_ImageManager extends CRM_Core_Page {
     ];
 
     // run elFinder
-    $connector = new elFinderConnector(new elFinder($opts));
+    $connector = new class(new elFinder($opts)) extends elFinderConnector {
+
+      /**
+       * Issue an elFinder CSRF token without exposing the file listing.
+       */
+      public function issueDirectUploadCsrfToken(): string {
+        return $this->issueCsrfToken();
+      }
+
+    };
+    if ($isDirectUploadTokenRequest) {
+      CRM_Utils_System::setHttpHeader('Content-Type', 'application/json; charset=utf-8');
+      echo json_encode(['csrf' => $connector->issueDirectUploadCsrfToken()]);
+      exit;
+    }
     $connector->run();
     exit;
 

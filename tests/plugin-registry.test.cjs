@@ -26,10 +26,11 @@ function runtime(settings = {}, onLoadScript = () => {}, options = {}) {
     return {then() { return {catch() {}}; }};
   }};
   const window = {
-    ClassicEditor,
+    ClassicEditor: options.classicEditor === false ? undefined : ClassicEditor,
     CKEDITOR_VERSION: '49.0.1',
     CKEDITOR: {version: '49.0.1'},
-    location: {href: 'https://example.test/civicrm', origin: 'https://example.test'}
+    location: {href: 'https://example.test/civicrm', origin: 'https://example.test'},
+    ...options.window
   };
   const document = {
     querySelectorAll() { return existingStylesheets.map(href => ({href})); },
@@ -54,6 +55,31 @@ function runtime(settings = {}, onLoadScript = () => {}, options = {}) {
   });
   return {CRM, created, rejected, loadedStylesheets};
 }
+
+test('the UMD runtime remains global when no AMD loader is present', async () => {
+  let loadCount = 0;
+  const {CRM} = runtime({}, () => { loadCount += 1; });
+  const editor = await CRM.ckeditor5.loadEditorRuntime('/ckeditor.js');
+  assert.equal(typeof editor.create, 'function');
+  assert.equal(loadCount, 0);
+});
+
+test('the named UMD module is normalized when Monaco provides an AMD loader', async () => {
+  const amdEditor = {create() {}};
+  const define = function() {};
+  define.amd = {};
+  const requirejs = (dependencies, resolve) => {
+    assert.deepEqual(Array.from(dependencies), ['ClassicEditor']);
+    resolve(amdEditor);
+  };
+  const {CRM} = runtime({}, () => {}, {
+    classicEditor: false,
+    window: {define, requirejs}
+  });
+
+  const editor = await CRM.ckeditor5.loadEditorRuntime('/ckeditor.js');
+  assert.equal(editor, amdEditor);
+});
 
 test('registered plugins are added to each editor configuration once', () => {
   const {CRM} = runtime();

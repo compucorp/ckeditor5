@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.9.1 - 2026-10-30
+
+### Permissions and editor lifecycle
+
+- Replace the CMS-specific `upload files` check with the portable CiviCRM
+  `upload CKEditor 5 images` permission. CiviCRM administrators inherit the
+  permission, while browsing existing files remains independently controlled
+  by `access uploaded files`.
+- Stop emitting CiviCRM `change` events after every editor data change. The
+  source element remains synchronized while editing, and the final `change`
+  event is emitted when focus leaves the editor.
+
+### Runtime compatibility
+
+- Keep the shared editor bundle in UMD format while naming its AMD export and
+  normalizing it through the CiviCRM adapter. CKEditor now loads correctly on
+  CiviCRM 6.20 message template screens where Monaco already provides an AMD
+  loader.
+- Allow elFinder uploads to initialize when the optional CKEditor Notification
+  plugin is not loaded.
+- Mark the image manager and token endpoints as AJAX routes.
+
+### File manager
+
+- Request and submit an elFinder CSRF token for direct CKEditor image uploads.
+- Add a light CiviCRM integration theme for elFinder without modifying the
+  bundled upstream styles.
+
 ## 1.9 - 2026-10-28
 
 This release requires CiviCRM 6.16 or later, PHP 8.2 or later, and Smarty 5.
