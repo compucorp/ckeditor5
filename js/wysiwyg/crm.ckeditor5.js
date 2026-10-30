@@ -1611,6 +1611,24 @@
       // Make uploader
       const uploder = function(loader) {
         let request;
+        let tokenRequest;
+        const getCsrfToken = function() {
+          tokenRequest = $.ajax({
+            url: connectorUrl,
+            method: 'POST',
+            data: {
+              ckeditor5_direct_upload: '1',
+              ckeditor5_csrf_init: '1'
+            },
+            dataType: 'json'
+          });
+          return tokenRequest.then(data => {
+            if (!data || !data.csrf) {
+              return $.Deferred().reject('errUploadCsrf').promise();
+            }
+            return data.csrf;
+          });
+        };
         let upload = function(file, resolve, reject) {
           const formData = new FormData();
           formData.append('cmd', 'upload');
@@ -1618,22 +1636,27 @@
           formData.append('ckeditor5_direct_upload', '1');
           formData.append('upload[]', file, file.name);
           formData.append('mtime[]', file.lastModified ? Math.round(file.lastModified / 1000) : 0);
-          request = $.ajax({
-            url: connectorUrl,
-            method: 'POST',
-            data: formData,
-            contentType: false,
-            processData: false,
-            dataType: 'json'
-          }).done(data => {
-            const uploaded = data && data.added && data.added[0];
-            if (uploaded && uploaded.url) {
-              resolve({'default': uploaded.url});
-              return;
-            }
-            reject(data && data.error ? String(data.error) : 'errUploadNoFiles');
+          getCsrfToken().done(csrfToken => {
+            request = $.ajax({
+              url: connectorUrl,
+              method: 'POST',
+              data: formData,
+              headers: {'X-elFinder-CSRF': csrfToken},
+              contentType: false,
+              processData: false,
+              dataType: 'json'
+            }).done(data => {
+              const uploaded = data && data.added && data.added[0];
+              if (uploaded && uploaded.url) {
+                resolve({'default': uploaded.url});
+                return;
+              }
+              reject(data && data.error ? String(data.error) : 'errUploadNoFiles');
+            }).fail((xhr, status, error) => {
+              reject(error || status || 'errUploadNoFiles');
+            });
           }).fail((xhr, status, error) => {
-            reject(error || status || 'errUploadNoFiles');
+            reject(error || status || xhr || 'errUploadCsrf');
           });
         };
 
@@ -1649,6 +1672,7 @@
           });
         };
         this.abort = function() {
+          if (tokenRequest && typeof tokenRequest.abort === 'function') tokenRequest.abort();
           if (request && typeof request.abort === 'function') request.abort();
         };
       };
