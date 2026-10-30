@@ -203,7 +203,7 @@
     const ready = (async function () {
       if (!CRM.wysiwyg.getConfig) await load(CRM.config.wysisygScriptLocation);
       if (CRM.config.CKEditor5Language) await load(CRM.config.CKEditor5Language);
-      if (!window.ClassicEditor) await load(CRM.config.CKEditor5Location);
+      if (!window.ClassicEditor) await CRM.ckeditor5.loadEditorRuntime(CRM.config.CKEditor5Location);
       if (CRM.ckeditor5 && typeof CRM.ckeditor5.loadPluginAssets === 'function') {
         await CRM.ckeditor5.loadPluginAssets();
       }

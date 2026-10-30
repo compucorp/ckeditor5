@@ -15,6 +15,7 @@
     'image/tiff'
   ]);
   let pluginAssetsPromise;
+  let editorRuntimePromise;
 
   /**
    * Allow the standalone elFinder window to receive focus from inside a
@@ -37,6 +38,50 @@
   }
 
   CRM.ckeditor5 = CRM.ckeditor5 || {};
+
+  /**
+   * Load the shared UMD bundle and normalize its export to the global expected
+   * by the CiviCRM WYSIWYG adapter. Monaco installs an AMD loader globally, so
+   * the UMD bundle registers as a named AMD module on message template pages.
+   *
+   * @param {string} url
+   * @return {Promise<Function>}
+   */
+  CRM.ckeditor5.loadEditorRuntime = function(url) {
+    if (window.ClassicEditor) return Promise.resolve(window.ClassicEditor);
+    if (editorRuntimePromise) return editorRuntimePromise;
+
+    editorRuntimePromise = new Promise(function(resolve, reject) {
+      CRM.loadScript(url).done(function() {
+        if (window.ClassicEditor) {
+          resolve(window.ClassicEditor);
+          return;
+        }
+
+        const amdRequire = window.requirejs || window.require;
+        if (typeof window.define !== 'function' || !window.define.amd || typeof amdRequire !== 'function') {
+          reject(new Error('The CKEditor 5 runtime loaded without exposing ClassicEditor.'));
+          return;
+        }
+
+        amdRequire(['ClassicEditor'], function(editor) {
+          window.ClassicEditor = editor && editor.default ? editor.default : editor;
+          if (!window.ClassicEditor) {
+            reject(new Error('The CKEditor 5 AMD module did not export ClassicEditor.'));
+            return;
+          }
+          resolve(window.ClassicEditor);
+        }, reject);
+      }).fail(function() {
+        reject(new Error('Unable to load the CKEditor 5 runtime.'));
+      });
+    }).catch(function(error) {
+      editorRuntimePromise = null;
+      throw error;
+    });
+
+    return editorRuntimePromise;
+  };
 
   /**
    * Register a plugin constructor built against the shared CKEditor runtime.
@@ -1761,7 +1806,7 @@
         || (useElFinder && canBrowseFiles);
 
       $(item).addClass('crm-wysiwyg-enabled');
-      ClassicEditor
+      window.ClassicEditor
         .create({...config, attachTo: $(item)[0]})
         .then(function(editor) {
           try {
@@ -1803,7 +1848,7 @@
      */
     function loadEditor() {
       function loadBuild() {
-        CRM.loadScript(CRM.config.CKEditor5Location).done(function() {
+        CRM.ckeditor5.loadEditorRuntime(CRM.config.CKEditor5Location).then(function() {
           if (CRM.config.ELFinderLocation) {
             CRM.loadScript(CRM.config.ELFinderLocation)
               .done(loadExtensionsAndInitialize)
@@ -1814,9 +1859,7 @@
           else {
             loadExtensionsAndInitialize();
           }
-        }).fail(function() {
-          rejectInitialization(new Error('Unable to load the CKEditor 5 runtime.'));
-        });
+        }).catch(rejectInitialization);
       }
 
       if (CRM.config.CKEditor5Language) {
