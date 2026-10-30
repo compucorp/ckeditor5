@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.9.1 - 2026-10-30
+
+### Permissions and editor lifecycle
+
+- Replace the CMS-specific `upload files` check with the portable CiviCRM
+  `upload CKEditor 5 images` permission. CiviCRM administrators inherit the
+  permission, while browsing existing files remains independently controlled
+  by `access uploaded files`.
+- Stop emitting CiviCRM `change` events after every editor data change. The
+  source element remains synchronized while editing, and the final `change`
+  event is emitted when focus leaves the editor.
+
 ## 1.9 - 2026-10-28
 
 This release requires CiviCRM 6.16 or later, PHP 8.2 or later, and Smarty 5.
