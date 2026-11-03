@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.9.2 - 2026-11-03
+
+### Editor lifecycle
+
+- Cancel pending debounced source-element updates when an editor instance is
+  destroyed or replaced, preventing collapsed rich-text fields from having
+  their underlying textarea overwritten with `undefined` after closing the
+  editor.
+
 ## 1.9.1 - 2026-10-30
 
 ### Permissions and editor lifecycle
