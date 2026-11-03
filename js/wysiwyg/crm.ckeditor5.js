@@ -1741,16 +1741,35 @@
 
       instances[name] = editor;
 
+      function cancelPendingSourceUpdate() {
+        if (debounce) {
+          clearTimeout(debounce);
+          debounce = null;
+        }
+      }
+
+      function isActiveInstance() {
+        return (!editor.state || editor.state === 'ready') && getInstance(item) === editor;
+      }
+
+      function scheduleSourceUpdate() {
+        cancelPendingSourceUpdate();
+        debounce = setTimeout(function() {
+          debounce = null;
+          if (!isActiveInstance()) {
+            return;
+          }
+          editor.updateSourceElement();
+        }, 50);
+      }
+
       if (typeof editor.ui.view.element.addEventListener === 'function') {
         editor.ui.view.element.addEventListener('input', function(event) {
           const target = event && event.target;
           if (!target || !target.matches) return;
           if (target.matches('textarea.raw-html-embed__source:not([disabled]), .ck-source-editing-area textarea:not([disabled])')) {
             syncActiveRawTextarea(editor);
-            if (debounce) clearTimeout(debounce);
-            debounce = setTimeout(function() {
-              editor.updateSourceElement();
-            }, 50);
+            scheduleSourceUpdate();
           }
         });
       }
@@ -1759,10 +1778,7 @@
       // image uploads finish asynchronously and may otherwise be omitted when
       // an action reads the textarea before CKEditor loses focus.
       editor.model.document.on('change:data', function() {
-        if (debounce) clearTimeout(debounce);
-        debounce = setTimeout(function() {
-          editor.updateSourceElement();
-        }, 50);
+        scheduleSourceUpdate();
       });
 
       // The editable itself loses focus when CKEditor opens contextual UI such
@@ -1770,7 +1786,10 @@
       // lost focus, otherwise collapsed fields close while their dialogs are in use.
       editor.ui.focusTracker.on('change:isFocused', function(evt, name, isFocused) {
         if (isFocused) return;
-        if (debounce) clearTimeout(debounce);
+        cancelPendingSourceUpdate();
+        if (!isActiveInstance()) {
+          return;
+        }
         syncActiveRawTextarea(editor);
         editor.updateSourceElement();
         $(item).trigger("blur");
@@ -1778,8 +1797,11 @@
       });
 
       editor.on('destroy', function(e) {
+        cancelPendingSourceUpdate();
         var name = $(e.source.sourceElement).attr('name') || $(e.source.sourceElement).attr('id');
-        delete instances[name];
+        if (instances[name] === e.source) {
+          delete instances[name];
+        }
       });
       $(editor.sourceElement).trigger('crmWysiwygCreate', ['ckeditor', editor]);
       deferred.resolve();
@@ -1891,6 +1913,10 @@
     $(item).removeClass('crm-wysiwyg-enabled');
     var editor = getInstance(item);
     if (editor) {
+      var name = $(item).attr('name') || $(item).attr('id');
+      if (instances[name] === editor) {
+        delete instances[name];
+      }
       editor.destroy();
     }
   };
