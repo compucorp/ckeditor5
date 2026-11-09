@@ -15,6 +15,85 @@
     }
   }
 
+  // Widest an image is written into the saved HTML, in pixels: the usual
+  // width of an email body.
+  var emailImageMaxWidth = 600;
+
+  function findViewElement(viewElement, name) {
+    if (!viewElement) {
+      return null;
+    }
+    if (viewElement.is('element', name)) {
+      return viewElement;
+    }
+    if (typeof viewElement.getChildren === 'function') {
+      for (const child of viewElement.getChildren()) {
+        const found = findViewElement(child, name);
+        if (found) {
+          return found;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Write each image's display size onto the <img> itself.
+   *
+   * A resized image keeps its size on the <figure> around it, and only the
+   * editor's own stylesheet scales the <img> to fit. Email clients don't get
+   * that stylesheet, so they show the image at its full natural width. This
+   * puts a pixel width and height on the <img>, capped at emailImageMaxWidth.
+   *
+   * Based on emailImageOutput() in upstream 1.9, which handles pixel widths. A
+   * percentage width is taken as a share of emailImageMaxWidth, so images
+   * resized before resizeUnit was 'px' keep their relative size.
+   *
+   * @param {Object} editor
+   */
+  function emailImageOutput(editor) {
+    editor.conversion.for('dataDowncast').add(function(dispatcher) {
+      var convertImage = function(event, data, conversionApi) {
+        var image = data.item;
+        var viewImage = findViewElement(conversionApi.mapper.toViewElement(image), 'img');
+        if (!viewImage) {
+          return;
+        }
+
+        var writer = conversionApi.writer;
+        writer.setAttribute('border', '0', viewImage);
+        writer.setStyle('max-width', '100%', viewImage);
+        writer.setStyle('height', 'auto', viewImage);
+
+        var naturalWidth = Number(image.getAttribute('width'));
+        var naturalHeight = Number(image.getAttribute('height'));
+        var resizedWidth = String(image.getAttribute('resizedWidth') || '');
+        var pixels = resizedWidth.match(/^([0-9]+(?:\.[0-9]+)?)px$/i);
+        var percent = resizedWidth.match(/^([0-9]+(?:\.[0-9]+)?)%$/);
+        var displayWidth = naturalWidth;
+        if (pixels) {
+          displayWidth = Number(pixels[1]);
+        }
+        else if (percent) {
+          displayWidth = emailImageMaxWidth * Number(percent[1]) / 100;
+        }
+        if (!isFinite(displayWidth) || displayWidth <= 0) {
+          return;
+        }
+        displayWidth = Math.max(1, Math.min(Math.round(displayWidth), emailImageMaxWidth));
+
+        writer.setAttribute('width', String(displayWidth), viewImage);
+        if (naturalWidth > 0 && naturalHeight > 0) {
+          writer.setAttribute('height', String(Math.max(1, Math.round(naturalHeight * displayWidth / naturalWidth))), viewImage);
+        }
+        writer.setStyle('width', displayWidth + 'px', viewImage);
+      };
+
+      dispatcher.on('insert:imageInline', convertImage, {priority: 'lowest'});
+      dispatcher.on('insert:imageBlock', convertImage, {priority: 'lowest'});
+    });
+  }
+
   CRM.wysiwyg.supportsFileUploads = true;
 
   CRM.wysiwyg._create = function(item) {
@@ -332,7 +411,10 @@
           items: toolbarItems
         },
         language: (typeof CRM.config.locale == 'string' ? CRM.config.locale.substr(0, 2) : 'en'),
+        extraPlugins: [emailImageOutput],
         image: {
+          // Resize in pixels, which email clients understand.
+          resizeUnit: 'px',
           toolbar: [
             'imageStyle:inline',
             'imageStyle:block',
