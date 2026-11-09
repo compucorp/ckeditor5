@@ -271,8 +271,14 @@
 
       instances[name] = editor;
 
-      // Update source element on blur; especially important for javascript-based UIs
-      editor.editing.view.document.on('blur', function() {
+      // Update source element on blur; especially important for javascript-based UIs.
+      // The editable itself loses focus when CKEditor opens contextual UI such
+      // as the link balloon. Only notify CiviCRM after the entire editor UI has
+      // lost focus, otherwise collapsed fields close while their dialogs are in use.
+      editor.ui.focusTracker.on('change:isFocused', function(evt, name, isFocused) {
+        if (isFocused) {
+          return;
+        }
         editor.updateSourceElement();
         $(item).trigger("blur");
         $(item).trigger("change");
