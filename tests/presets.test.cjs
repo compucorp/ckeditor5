@@ -185,12 +185,12 @@ test('unconfigured default and civimail presets share email-safe images while ot
       assert.deepEqual(presentation.image.toolbar, ['imageResize', '|', 'imageTextAlternative']);
       assert.deepEqual(presentation.image.styles, ['inline']);
       assert.equal(presentation.civiEmailImageMaxWidth, 600);
-      assert.equal(presentation.extraPlugins.length, 2);
+      assert.equal(presentation.extraPlugins.length, 3);
       assert.equal(presentation.table.tableProperties.alignment.useInlineStyles, true);
     }
     else {
       assert.equal(presentation.civiEmailImageMaxWidth, false);
-      assert.equal(presentation.extraPlugins.length, 1);
+      assert.equal(presentation.extraPlugins.length, 2);
       assert.equal(presentation.table.tableProperties.alignment.useInlineStyles, false);
       assert.ok(presentation.image.styles.includes('block'));
       presentation.table.tableProperties.alignment.useInlineStyles = true;

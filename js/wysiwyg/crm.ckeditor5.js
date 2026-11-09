@@ -812,6 +812,21 @@
     });
   }
 
+  // Save page breaks without the page-break class. CiviCRM's print.css starts
+  // a new page before div.page-break, and the break's inline style starts
+  // another after it, so every break printed a blank page. The editor reads
+  // the break back from its inline style.
+  function pageBreakOutput(editor) {
+    editor.conversion.for('dataDowncast').add(function(dispatcher) {
+      dispatcher.on('insert:pageBreak', function(event, data, conversionApi) {
+        const viewPageBreak = conversionApi.mapper.toViewElement(data.item);
+        if (viewPageBreak && viewPageBreak.hasClass('page-break')) {
+          conversionApi.writer.removeClass('page-break', viewPageBreak);
+        }
+      }, {priority: 'lowest'});
+    });
+  }
+
   // Preserve the established palette while emitting email-safe hex values.
   const emailColorPalette = [
     { color: '#000000', label: 'Black' },
@@ -1120,8 +1135,8 @@
       civiPasteMarkdown: true,
       removePlugins: ['Markdown'],
       extraPlugins: emailSafePreset
-        ? [preserveTemplateStyles, emailImageOutput]
-        : [preserveTemplateStyles],
+        ? [preserveTemplateStyles, pageBreakOutput, emailImageOutput]
+        : [preserveTemplateStyles, pageBreakOutput],
       civiPreserveTemplateStyles: true,
       civiEmailImageMaxWidth: emailSafePreset ? 600 : false,
       fontFamily: {supportAllValues: true},
