@@ -165,6 +165,29 @@
     });
   }
 
+  /**
+   * Save an empty editor as an empty value.
+   *
+   * The FullPage plugin turns off trimming, so an editor with nothing in it
+   * returns an empty paragraph (<p>&nbsp;</p>), and a field left blank was
+   * saved with that instead of nothing. Return '' instead, as upstream 1.9
+   * does. A full HTML document with an empty body keeps its <head>.
+   *
+   * @param {Object} editor
+   */
+  function emptyAsBlank(editor) {
+    editor.data.on('get', function(evt, args) {
+      var rootName = (args[0] && args[0].rootName) || 'main';
+      var root = editor.model.document.getRoot(rootName);
+      if (typeof evt.return !== 'string' || !root || editor.model.hasContent(root, {ignoreWhitespaces: true})) {
+        return;
+      }
+      if (!/<(?:!doctype|html|head|body)[\s>]/i.test(evt.return)) {
+        evt.return = '';
+      }
+    }, {priority: 'low'});
+  }
+
   CRM.wysiwyg.supportsFileUploads = true;
 
   CRM.wysiwyg._create = function(item) {
@@ -358,6 +381,7 @@
         name = $(editor.sourceElement).attr('name') || $(editor.sourceElement).attr('id');
 
       instances[name] = editor;
+      emptyAsBlank(editor);
 
       // Update source element on blur; especially important for javascript-based UIs.
       // The editable itself loses focus when CKEditor opens contextual UI such
