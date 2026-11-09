@@ -168,6 +168,26 @@ html body .ck-content table.civi-email-align-right {
   margin-right: 0 !important;
 }
 
+/* Show tables where the saved HTML puts them. CKEditor centres every table
+ * in the editor, but a table saved without an alignment has no centring, so
+ * emails and PDFs show it at the left, as CKEditor 4 did. Tables aligned on
+ * purpose keep their place: a legacy alignment class on the inner table, or
+ * an alignment from the table properties, which is an inline style. */
+html body .ck-content .table:not(.layout-table) {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+html body .ck-content .table:has(> table.civi-email-align-center) {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+html body .ck-content .table:has(> table.civi-email-align-right) {
+  margin-left: auto;
+  margin-right: 0;
+}
+
 .ck5-html-qa {
   border: 1px solid #b8b8b8;
   margin: 0.75rem 0;
