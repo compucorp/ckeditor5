@@ -786,7 +786,16 @@
         const naturalHeight = Number(image.getAttribute('height'));
         const resizedWidth = String(image.getAttribute('resizedWidth') || '');
         const pixelResize = resizedWidth.match(/^([0-9]+(?:\.[0-9]+)?)px$/i);
-        let displayWidth = pixelResize ? Number(pixelResize[1]) : naturalWidth;
+        // Images resized before resizeUnit was 'px' carry a percentage. Take it
+        // as a share of the email width, so they keep their relative size.
+        const percentResize = resizedWidth.match(/^([0-9]+(?:\.[0-9]+)?)%$/);
+        let displayWidth = naturalWidth;
+        if (pixelResize) {
+          displayWidth = Number(pixelResize[1]);
+        }
+        else if (percentResize) {
+          displayWidth = maxWidth * Number(percentResize[1]) / 100;
+        }
         if (!Number.isFinite(displayWidth) || displayWidth <= 0) return;
         displayWidth = Math.max(1, Math.min(Math.round(displayWidth), maxWidth));
 
