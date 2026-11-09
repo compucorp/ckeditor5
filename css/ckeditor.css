@@ -104,6 +104,23 @@ body.ck-fullscreen .ui-front.dialogelfinder {
   position: fixed;
 }
 
+/*
+ * Keep CKEditor's balloons, such as the link box, above CiviCRM popups.
+ * CKEditor puts them at z-index 1000, and themes can put popups higher:
+ * Shoreditch sets .crm-container.ui-dialog to 2001, which hides the link box
+ * in Send Email and other popups. Only the balloons are raised (they sit in
+ * .ck-body-wrapper), not the editor's toolbar, so a popup still covers an
+ * editor behind it. They stay below elFinder and CKEditor's dialogs, and move
+ * up with --ck-z-default in fullscreen.
+ */
+.ck-body-wrapper {
+  --ck-z-panel: calc(var(--ck-z-default) + 2999);
+  /* CKEditor works out its layer variables once, on :root. */
+  --ck-layer-panel: var(--ck-z-panel);
+  --ck-layer-panel-above: calc(var(--ck-layer-panel) + 1);
+  --ck-layer-panel-below: calc(var(--ck-layer-panel) - 1);
+}
+
 .image.image-style-align-center {
   margin: 0 auto;
 }
