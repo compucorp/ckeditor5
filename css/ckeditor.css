@@ -26,6 +26,28 @@
   --ck-z-panel: calc(var(--ck-z-default) + 2999);
 }
 
+/*
+ * Show tables where the saved HTML puts them. CKEditor centres every table
+ * in the editor, but a table saved without an alignment has no centring, so
+ * emails and PDFs show it at the left, as CKEditor 4 did. A table with an
+ * align attribute keeps that alignment, and one floated left or right from
+ * the table properties keeps its float, which is an inline style.
+ */
+html body .ck-content .table {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+html body .ck-content .table:has(> table[align="center"]) {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+html body .ck-content .table:has(> table[align="right"]) {
+  margin-left: auto;
+  margin-right: 0;
+}
+
 .image.image-style-align-center {
   margin: 0 auto;
 }
