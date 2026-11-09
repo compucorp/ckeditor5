@@ -77,6 +77,94 @@
     });
   }
 
+  /**
+   * Save tables without the <figure class="table"> wrapper.
+   *
+   * PDF engines and email clients give a figure default margins, so a table
+   * is indented and narrowed, and a fixed-width form can spill onto another
+   * page. Save the <table> on its own, carrying the figure's styles (its
+   * width and alignment). Upstream 1.9 gets the same result from CKEditor's
+   * PlainTableOutput plugin, which this build doesn't include.
+   *
+   * It wraps the data processor in afterInit(), because the FullPage plugin
+   * replaces the data processor during init().
+   */
+  class UnwrappedTableOutput {
+    constructor(editor) {
+      this.editor = editor;
+    }
+
+    afterInit() {
+      var processor = this.editor.data.processor;
+      var toData = processor.toData.bind(processor);
+      processor.toData = function(viewFragment) {
+        return unwrapTables(toData(viewFragment));
+      };
+    }
+  }
+
+  /**
+   * @param {String} html
+   *   A fragment, or a full document from the FullPage plugin.
+   * @return {String}
+   */
+  function unwrapTables(html) {
+    if (html.indexOf('<figure class="table') === -1) {
+      return html;
+    }
+    // Only rewrite what is inside <body>, so a full document keeps its
+    // doctype, <html>, <head> and <body> exactly as they were.
+    var body = html.match(/(<body\b[^>]*>)([\s\S]*)(<\/body>)/i);
+    if (body) {
+      return html.slice(0, body.index) + body[1] + unwrapTableFigures(body[2]) + body[3] + html.slice(body.index + body[0].length);
+    }
+    return unwrapTableFigures(html);
+  }
+
+  /**
+   * @param {String} html
+   * @return {String}
+   */
+  function unwrapTableFigures(html) {
+    var template = document.createElement('template');
+    template.innerHTML = html;
+    template.content.querySelectorAll('figure.table').forEach(function(figure) {
+      var table = figure.querySelector(':scope > table');
+      if (!table) {
+        return;
+      }
+      for (var i = 0; i < figure.style.length; i++) {
+        var property = figure.style[i];
+        if (!table.style.getPropertyValue(property)) {
+          table.style.setProperty(property, figure.style.getPropertyValue(property));
+        }
+      }
+      var figcaption = figure.querySelector(':scope > figcaption');
+      if (figcaption) {
+        var caption = document.createElement('caption');
+        caption.innerHTML = figcaption.innerHTML;
+        table.insertBefore(caption, table.firstChild);
+      }
+      figure.replaceWith(table);
+    });
+    return template.innerHTML;
+  }
+
+  // Save page breaks without the page-break class. CiviCRM's print.css starts
+  // a new page before div.page-break, and the break's inline style starts
+  // another after it, so every break printed a blank page. The editor reads
+  // the break back from its inline style.
+  function pageBreakOutput(editor) {
+    editor.conversion.for('dataDowncast').add(function(dispatcher) {
+      dispatcher.on('insert:pageBreak', function(event, data, conversionApi) {
+        const viewPageBreak = conversionApi.mapper.toViewElement(data.item);
+        if (viewPageBreak && viewPageBreak.hasClass('page-break')) {
+          conversionApi.writer.removeClass('page-break', viewPageBreak);
+        }
+      }, {priority: 'lowest'});
+    });
+  }
+
   CRM.wysiwyg.supportsFileUploads = true;
 
   CRM.wysiwyg._create = function(item) {
@@ -400,7 +488,7 @@
           items: toolbarItems
         },
         language: (typeof CRM.config.locale == 'string' ? CRM.config.locale.substr(0, 2) : 'en'),
-        extraPlugins: [emailImageOutput],
+        extraPlugins: [emailImageOutput, UnwrappedTableOutput, pageBreakOutput],
         image: {
           // Resize in pixels, which email clients understand.
           resizeUnit: 'px',
