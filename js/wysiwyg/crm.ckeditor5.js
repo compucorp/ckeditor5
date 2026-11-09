@@ -383,6 +383,16 @@
       instances[name] = editor;
       emptyAsBlank(editor);
 
+      // The toolbar sticks to the top of the window when the editor scrolls up
+      // out of view. In a CiviCRM popup it sticks over the popup's content
+      // instead, and as a fixed element it leaves the form's layout, so the
+      // editor narrows and the wrapped toolbar covers the text. In a popup,
+      // let the toolbar scroll with the content.
+      if ($(editor.sourceElement).closest('.ui-dialog').length && editor.ui.view.stickyPanel) {
+        editor.ui.view.stickyPanel.unbind('isActive');
+        editor.ui.view.stickyPanel.isActive = false;
+      }
+
       // Update source element on blur; especially important for javascript-based UIs.
       // The editable itself loses focus when CKEditor opens contextual UI such
       // as the link balloon. Only notify CiviCRM after the entire editor UI has
