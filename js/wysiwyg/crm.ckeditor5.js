@@ -19,24 +19,6 @@
   // width of an email body.
   var emailImageMaxWidth = 600;
 
-  function findViewElement(viewElement, name) {
-    if (!viewElement) {
-      return null;
-    }
-    if (viewElement.is('element', name)) {
-      return viewElement;
-    }
-    if (typeof viewElement.getChildren === 'function') {
-      for (const child of viewElement.getChildren()) {
-        const found = findViewElement(child, name);
-        if (found) {
-          return found;
-        }
-      }
-    }
-    return null;
-  }
-
   /**
    * Write each image's display size onto the <img> itself.
    *
@@ -55,7 +37,8 @@
     editor.conversion.for('dataDowncast').add(function(dispatcher) {
       var convertImage = function(event, data, conversionApi) {
         var image = data.item;
-        var viewImage = findViewElement(conversionApi.mapper.toViewElement(image), 'img');
+        var viewElement = conversionApi.mapper.toViewElement(image);
+        var viewImage = viewElement && editor.plugins.get('ImageUtils').findViewImgElement(viewElement);
         if (!viewImage) {
           return;
         }
