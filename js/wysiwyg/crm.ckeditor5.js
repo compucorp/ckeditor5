@@ -466,6 +466,15 @@
         cell.classList.add('civi-email-align-left');
       }
     });
+    // CKEditor saves every empty cell with &nbsp; in it, and once loaded an
+    // empty cell looks the same as one holding &nbsp;. Mark the cells that
+    // are stored empty (or only hold comments) so they are saved empty
+    // again; see restoreEmptyCells().
+    root.querySelectorAll('td, th').forEach(function(cell) {
+      const empty = Array.from(cell.childNodes).every(node => node.nodeName === '#comment'
+        || (node.nodeName === '#text' && /^[ \t\n\r\f]*$/.test(node.data)));
+      if (empty) cell.classList.add('civi-email-empty-cell');
+    });
     root.querySelectorAll('[valign]').forEach(function(element) {
       if (!element.style.verticalAlign) element.style.verticalAlign = element.getAttribute('valign');
     });
@@ -520,6 +529,25 @@
       cell.insertBefore(inlineWrapper, child);
       inlineWrapper.appendChild(child);
     });
+  }
+
+  // Take out the &nbsp; that CKEditor fills a cell marked by
+  // preserveLegacyEmailLayout() with, so a cell stored empty, such as a
+  // coloured spacer row, doesn't gain a line of text height. A cell that has
+  // since been given content keeps it.
+  function restoreEmptyCells(html) {
+    if (!html.includes('civi-email-empty-cell')) return html;
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    template.content.querySelectorAll('.civi-email-empty-cell').forEach(function(cell) {
+      cell.classList.remove('civi-email-empty-cell');
+      if (!cell.classList.length) cell.removeAttribute('class');
+      const content = Array.from(cell.childNodes).filter(node => node.nodeName !== '#comment');
+      if (content.length === 1 && content[0].nodeName === '#text' && content[0].data === '\u00a0') {
+        content[0].remove();
+      }
+    });
+    return template.innerHTML;
   }
 
   function sanitizeHeadElement(head) {
@@ -678,7 +706,7 @@
             }
           }
         }
-        const fragmentHtml = toData(viewFragment);
+        const fragmentHtml = restoreEmptyCells(toData(viewFragment));
         if (!preserveStyles) {
           return fragmentHtml;
         }
