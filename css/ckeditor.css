@@ -15,15 +15,18 @@
 }
 
 /*
- * Source view sizes its box to the full text. Cap the box and let the
- * textarea scroll, otherwise scrolling the box shows blank space below it.
+ * Source view sizes its box to the full text, and the textarea fills the box.
+ * Cap the box and let the textarea scroll its own text. The minimum height
+ * goes on the box too: a minimum on the textarea alone overflows the box,
+ * which cuts off the last lines when the window is short.
  */
 .ck.ck-editor__main > .ck-source-editing-area {
+  min-height: min(400px, 70vh);
   max-height: 70vh;
-  overflow: hidden;
 }
 
 .ck.ck-editor__main > .ck-source-editing-area textarea {
+  min-height: 0;
   overflow-y: auto;
 }
 
