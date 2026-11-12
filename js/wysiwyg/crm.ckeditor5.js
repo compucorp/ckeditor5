@@ -112,23 +112,36 @@
     if (html.indexOf('<figure class="table') === -1) {
       return html;
     }
-    // Only rewrite what is inside <body>, so a full document keeps its
-    // doctype, <html>, <head> and <body> exactly as they were.
-    var body = html.match(/(<body\b[^>]*>)([\s\S]*)(<\/body>)/i);
-    if (body) {
-      return html.slice(0, body.index) + body[1] + unwrapTableFigures(body[2]) + body[3] + html.slice(body.index + body[0].length);
-    }
-    return unwrapTableFigures(html);
+    return rewriteBody(html, unwrapTableFigures);
   }
 
   /**
+   * Change HTML through the DOM.
+   *
+   * Only what is inside <body> is rewritten, so a full document keeps its
+   * doctype, <html>, <head> and <body> exactly as they were.
+   *
    * @param {String} html
+   *   A fragment, or a full document from the FullPage plugin.
+   * @param {Function} rewrite
+   *   Changes the DocumentFragment it is given in place.
    * @return {String}
    */
-  function unwrapTableFigures(html) {
+  function rewriteBody(html, rewrite) {
+    var body = html.match(/(<body\b[^>]*>)([\s\S]*)(<\/body>)/i);
+    var start = body ? body.index + body[1].length : 0;
+    var end = body ? start + body[2].length : html.length;
     var template = document.createElement('template');
-    template.innerHTML = html;
-    template.content.querySelectorAll('figure.table').forEach(function(figure) {
+    template.innerHTML = html.slice(start, end);
+    rewrite(template.content);
+    return html.slice(0, start) + template.innerHTML + html.slice(end);
+  }
+
+  /**
+   * @param {DocumentFragment} root
+   */
+  function unwrapTableFigures(root) {
+    root.querySelectorAll('figure.table').forEach(function(figure) {
       var table = figure.querySelector(':scope > table');
       if (!table) {
         return;
@@ -147,7 +160,145 @@
       }
       figure.replaceWith(table);
     });
-    return template.innerHTML;
+  }
+
+  /**
+   * Keep table-based email templates laid out as stored.
+   *
+   * Such templates centre their content with align="center" on table cells,
+   * which CKEditor turns into text-align:center. That doesn't centre a nested
+   * table or a display:block image, so the content column, the logo and
+   * buttons moved to the left. Upstream 1.9 rewrites the legacy layout when
+   * the content is loaded, with preserveLegacyEmailLayout(), and writes the
+   * nested tables' margins back on save. Both are copied from upstream as
+   * they are. This build's FullPage plugin replaces the data processor
+   * during init(), so the loading step is wired in afterInit().
+   */
+  class LegacyEmailLayout {
+    constructor(editor) {
+      this.editor = editor;
+    }
+
+    init() {
+      this.editor.conversion.for('dataDowncast').add(function(dispatcher) {
+        dispatcher.on('insert:table', function(event, data, conversionApi) {
+          const viewTable = findViewElement(conversionApi.mapper.toViewElement(data.item), 'table');
+          if (!viewTable) return;
+          const writer = conversionApi.writer;
+          if (viewTable.hasClass('civi-email-align-center')) {
+            writer.setStyle('margin-left', 'auto', viewTable);
+            writer.setStyle('margin-right', 'auto', viewTable);
+          }
+          else if (viewTable.hasClass('civi-email-align-left')) {
+            writer.setStyle('margin-left', '0', viewTable);
+            writer.setStyle('margin-right', 'auto', viewTable);
+          }
+          else if (viewTable.hasClass('civi-email-align-right')) {
+            writer.setStyle('margin-left', 'auto', viewTable);
+            writer.setStyle('margin-right', '0', viewTable);
+          }
+        }, {priority: 'lowest'});
+      });
+    }
+
+    afterInit() {
+      var processor = this.editor.data.processor;
+      var toView = processor.toView.bind(processor);
+      processor.toView = function(html) {
+        if (typeof html === 'string' && html.trim() !== '') {
+          html = rewriteBody(html, preserveLegacyEmailLayout);
+        }
+        return toView(html);
+      };
+    }
+  }
+
+  function preserveLegacyEmailLayout(root) {
+    root.querySelectorAll('[align]').forEach(function(element) {
+      const alignment = String(element.getAttribute('align') || '').toLowerCase();
+      if (!['left', 'center', 'right', 'justify'].includes(alignment)) return;
+      if (element.tagName === 'TABLE') {
+        if (alignment === 'center') {
+          element.classList.add('civi-email-align-center');
+          if (!element.style.marginLeft) element.style.marginLeft = 'auto';
+          if (!element.style.marginRight) element.style.marginRight = 'auto';
+        }
+        else if (alignment === 'left' || alignment === 'right') {
+          element.classList.add(`civi-email-align-${alignment}`);
+          if (!element.style.marginLeft) element.style.marginLeft = alignment === 'right' ? 'auto' : '0';
+          if (!element.style.marginRight) element.style.marginRight = alignment === 'left' ? 'auto' : '0';
+        }
+      }
+      else if (!element.style.textAlign) {
+        element.style.textAlign = alignment;
+      }
+    });
+    root.querySelectorAll('[valign]').forEach(function(element) {
+      if (!element.style.verticalAlign) element.style.verticalAlign = element.getAttribute('valign');
+    });
+    root.querySelectorAll('[bgcolor]').forEach(function(element) {
+      if (!element.style.backgroundColor) element.style.backgroundColor = element.getAttribute('bgcolor');
+    });
+    root.querySelectorAll('td, th').forEach(function(cell) {
+      if (cell.children.length === 1 && cell.firstElementChild.tagName === 'TABLE') {
+        const innerTable = cell.firstElementChild;
+        let alignSource = cell;
+        let cellAlign = '';
+        while (alignSource && !cellAlign) {
+          cellAlign = String(alignSource.getAttribute('align') || (alignSource.style && alignSource.style.textAlign) || '').toLowerCase();
+          alignSource = alignSource.parentElement && typeof alignSource.parentElement.closest === 'function'
+            ? alignSource.parentElement.closest('td, th')
+            : null;
+        }
+        if (cellAlign === 'center' && !innerTable.classList.contains('civi-email-align-center')) {
+          innerTable.classList.add('civi-email-align-center');
+          if (!innerTable.style.marginLeft) innerTable.style.marginLeft = 'auto';
+          if (!innerTable.style.marginRight) innerTable.style.marginRight = 'auto';
+        }
+        else if ((cellAlign === 'left' || cellAlign === 'right') && !innerTable.classList.contains(`civi-email-align-${cellAlign}`)) {
+          innerTable.classList.add(`civi-email-align-${cellAlign}`);
+          if (!innerTable.style.marginLeft) innerTable.style.marginLeft = cellAlign === 'right' ? 'auto' : '0';
+          if (!innerTable.style.marginRight) innerTable.style.marginRight = cellAlign === 'left' ? 'auto' : '0';
+        }
+      }
+      if (cell.children.length !== 1) return;
+      let child = cell.firstElementChild;
+      if (child.tagName === 'FIGURE' && child.classList.contains('image') && !child.querySelector('figcaption')) {
+        const image = child.querySelector('img');
+        const linkedImage = image && image.parentElement.tagName === 'A' ? image.parentElement : image;
+        if (linkedImage) {
+          cell.insertBefore(linkedImage, child);
+          child.remove();
+          child = linkedImage;
+          if (!cell.style.textAlign) cell.style.textAlign = 'center';
+        }
+      }
+      const image = child && child.tagName === 'IMG'
+        ? child
+        : child && child.tagName === 'A' && child.children.length === 1 && child.firstElementChild.tagName === 'IMG'
+          ? child.firstElementChild
+          : null;
+      if (!image) return;
+      if (image.style && image.style.display === 'block') {
+        image.style.display = 'inline-block';
+      }
+      const inlineWrapper = root.ownerDocument.createElement('span');
+      inlineWrapper.style.display = 'inline-block';
+      cell.insertBefore(inlineWrapper, child);
+      inlineWrapper.appendChild(child);
+    });
+  }
+
+  function findViewElement(viewElement, name) {
+    if (!viewElement) return null;
+    if (viewElement.is('element', name)) return viewElement;
+    if (typeof viewElement.getChildren === 'function') {
+      for (const child of viewElement.getChildren()) {
+        const found = findViewElement(child, name);
+        if (found) return found;
+      }
+    }
+    return null;
   }
 
   // Save page breaks without the page-break class. CiviCRM's print.css starts
@@ -522,7 +673,7 @@
           items: toolbarItems
         },
         language: (typeof CRM.config.locale == 'string' ? CRM.config.locale.substr(0, 2) : 'en'),
-        extraPlugins: [emailImageOutput, UnwrappedTableOutput, pageBreakOutput],
+        extraPlugins: [emailImageOutput, UnwrappedTableOutput, pageBreakOutput, LegacyEmailLayout],
         image: {
           // Resize in pixels, which email clients understand.
           resizeUnit: 'px',
