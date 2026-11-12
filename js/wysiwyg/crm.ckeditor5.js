@@ -78,27 +78,31 @@
   }
 
   /**
-   * Save tables without the <figure class="table"> wrapper.
+   * Save tables and images without their <figure> wrappers.
    *
    * PDF engines and email clients give a figure default margins, so a table
-   * is indented and narrowed, and a fixed-width form can spill onto another
-   * page. Save the <table> on its own, carrying the figure's styles (its
-   * width and alignment). Upstream 1.9 gets the same result from CKEditor's
-   * PlainTableOutput plugin, which this build doesn't include.
+   * is indented and narrowed, a fixed-width form can spill onto another page,
+   * and an image gets space around it. Save the <table> or the image on its
+   * own. Upstream 1.9 gets the table result from CKEditor's PlainTableOutput
+   * plugin, which this build doesn't include.
    *
    * It wraps the data processor in afterInit(), because the FullPage plugin
    * replaces the data processor during init().
    */
-  class UnwrappedTableOutput {
+  class UnwrappedFigureOutput {
     constructor(editor) {
       this.editor = editor;
+    }
+
+    init() {
+      blockImageOutput(this.editor);
     }
 
     afterInit() {
       var processor = this.editor.data.processor;
       var toData = processor.toData.bind(processor);
       processor.toData = function(viewFragment) {
-        return unwrapTables(toData(viewFragment));
+        return unwrapFigures(toData(viewFragment));
       };
     }
   }
@@ -108,27 +112,43 @@
    *   A fragment, or a full document from the FullPage plugin.
    * @return {String}
    */
-  function unwrapTables(html) {
-    if (html.indexOf('<figure class="table') === -1) {
+  function unwrapFigures(html) {
+    if (html.indexOf('<figure class="table') === -1 && html.indexOf('<figure class="image') === -1) {
       return html;
     }
-    // Only rewrite what is inside <body>, so a full document keeps its
-    // doctype, <html>, <head> and <body> exactly as they were.
-    var body = html.match(/(<body\b[^>]*>)([\s\S]*)(<\/body>)/i);
-    if (body) {
-      return html.slice(0, body.index) + body[1] + unwrapTableFigures(body[2]) + body[3] + html.slice(body.index + body[0].length);
-    }
-    return unwrapTableFigures(html);
+    return rewriteBody(html, function(root) {
+      unwrapTableFigures(root);
+      unwrapImageFigures(root);
+    });
   }
 
   /**
+   * Change HTML through the DOM.
+   *
+   * Only what is inside <body> is rewritten, so a full document keeps its
+   * doctype, <html>, <head> and <body> exactly as they were.
+   *
    * @param {String} html
+   *   A fragment, or a full document from the FullPage plugin.
+   * @param {Function} rewrite
+   *   Changes the DocumentFragment it is given in place.
    * @return {String}
    */
-  function unwrapTableFigures(html) {
+  function rewriteBody(html, rewrite) {
+    var body = html.match(/(<body\b[^>]*>)([\s\S]*)(<\/body>)/i);
+    var start = body ? body.index + body[1].length : 0;
+    var end = body ? start + body[2].length : html.length;
     var template = document.createElement('template');
-    template.innerHTML = html;
-    template.content.querySelectorAll('figure.table').forEach(function(figure) {
+    template.innerHTML = html.slice(start, end);
+    rewrite(template.content);
+    return html.slice(0, start) + template.innerHTML + html.slice(end);
+  }
+
+  /**
+   * @param {DocumentFragment} root
+   */
+  function unwrapTableFigures(root) {
+    root.querySelectorAll('figure.table').forEach(function(figure) {
       var table = figure.querySelector(':scope > table');
       if (!table) {
         return;
@@ -147,7 +167,284 @@
       }
       figure.replaceWith(table);
     });
-    return template.innerHTML;
+  }
+
+  // Image styles that only the editor's stylesheet lays out, and the inline
+  // margins or float that give the same layout in an email.
+  var imageStyleMargins = {
+    alignCenter: ['auto', 'auto'],
+    alignBlockLeft: ['0', 'auto'],
+    alignBlockRight: ['auto', '0']
+  };
+  var imageStyleFloats = {
+    side: 'right',
+    alignRight: 'right',
+    alignLeft: 'left'
+  };
+
+  /**
+   * Lay out each block image on its <img>, ready for unwrapImageFigures().
+   *
+   * Once the <figure> is gone, CKEditor reads an <img> back as a block image
+   * only if it has display:block. Without it, the image came back as an
+   * inline image in a new paragraph on the next save. The image's style
+   * becomes inline margins or a float, and its class goes onto the <img> too,
+   * so the editor shows the same style when the content is opened again.
+   * Margins or a float already on the <img> are kept. A captioned image keeps
+   * its figure, so only gets display:block.
+   *
+   * This is done in the downcast, not on the saved HTML, so that CKEditor
+   * writes the style attribute and a second save gives the same HTML. On
+   * load, the display:block and the style's margins or float are taken as
+   * part of the image and its style, not kept as the <img>'s own styles, so
+   * changing the image's style or type later changes them too.
+   *
+   * @param {Object} editor
+   */
+  function blockImageOutput(editor) {
+    var styleClass = function(name) {
+      var definition = editor.plugins.get('ImageStyleEditing').normalizedStyles.find(function(definition) {
+        return definition.name === name;
+      });
+      return definition && definition.className;
+    };
+
+    editor.conversion.for('upcast').add(function(dispatcher) {
+      dispatcher.on('element:img', function(event, data, conversionApi) {
+        var img = data.viewItem;
+        var consumable = conversionApi.consumable;
+        if (img.getStyle('display') === 'block') {
+          consumable.consume(img, {styles: ['display']});
+        }
+        Object.keys(imageStyleMargins).forEach(function(name) {
+          var margins = imageStyleMargins[name];
+          if (img.hasClass(styleClass(name)) && img.getStyle('margin-left') === margins[0] && img.getStyle('margin-right') === margins[1]) {
+            consumable.consume(img, {styles: ['margin-left', 'margin-right']});
+          }
+        });
+        Object.keys(imageStyleFloats).forEach(function(name) {
+          if (img.hasClass(styleClass(name)) && img.getStyle('float') === imageStyleFloats[name]) {
+            consumable.consume(img, {styles: ['float']});
+          }
+        });
+      }, {priority: 'high'});
+    });
+
+    editor.conversion.for('dataDowncast').add(function(dispatcher) {
+      dispatcher.on('insert:imageBlock', function(event, data, conversionApi) {
+        var image = data.item;
+        var figure = conversionApi.mapper.toViewElement(image);
+        var img = figure && editor.plugins.get('ImageUtils').findViewImgElement(figure);
+        if (!img) {
+          return;
+        }
+        var writer = conversionApi.writer;
+        writer.setStyle('display', 'block', img);
+
+        var captioned = Array.from(image.getChildren()).some(function(child) {
+          return child.is('element', 'caption');
+        });
+        var style = image.getAttribute('imageStyle');
+        if (captioned || !style) {
+          return;
+        }
+        var saved = (image.getAttribute('htmlImgAttributes') || {}).styles || {};
+        if (imageStyleMargins[style] && !saved.margin && !saved['margin-left'] && !saved['margin-right']) {
+          writer.setStyle('margin-left', imageStyleMargins[style][0], img);
+          writer.setStyle('margin-right', imageStyleMargins[style][1], img);
+        }
+        if (imageStyleFloats[style] && !saved.float) {
+          writer.setStyle('float', imageStyleFloats[style], img);
+        }
+        if (styleClass(style)) {
+          writer.addClass(styleClass(style), img);
+        }
+      }, {priority: 'lowest'});
+    });
+  }
+
+  /**
+   * Replace each <figure class="image"> with the image (or its link). The
+   * image already carries its size and layout (see emailImageOutput and
+   * blockImageOutput). A captioned image keeps its figure.
+   *
+   * @param {DocumentFragment} root
+   */
+  function unwrapImageFigures(root) {
+    root.querySelectorAll('figure.image').forEach(function(figure) {
+      if (!figure.querySelector('img') || figure.querySelector(':scope > figcaption')) {
+        return;
+      }
+      figure.replaceWith.apply(figure, Array.from(figure.childNodes));
+    });
+  }
+
+  /**
+   * Keep table-based email templates laid out as stored.
+   *
+   * Such templates centre their content with align="center" on table cells,
+   * which CKEditor turns into text-align:center. That doesn't centre a nested
+   * table or a display:block image, so the content column, the logo and
+   * buttons moved to the left. Upstream 1.9 rewrites the legacy layout when
+   * the content is loaded, with preserveLegacyEmailLayout(), and writes the
+   * nested tables' margins back on save. Both are copied from upstream as
+   * they are. This build's FullPage plugin replaces the data processor
+   * during init(), so the loading step is wired in afterInit().
+   */
+  class LegacyEmailLayout {
+    constructor(editor) {
+      this.editor = editor;
+    }
+
+    init() {
+      this.editor.conversion.for('dataDowncast').add(function(dispatcher) {
+        dispatcher.on('insert:table', function(event, data, conversionApi) {
+          const viewTable = findViewElement(conversionApi.mapper.toViewElement(data.item), 'table');
+          if (!viewTable) return;
+          const writer = conversionApi.writer;
+          if (viewTable.hasClass('civi-email-align-center')) {
+            writer.setStyle('margin-left', 'auto', viewTable);
+            writer.setStyle('margin-right', 'auto', viewTable);
+          }
+          else if (viewTable.hasClass('civi-email-align-left')) {
+            writer.setStyle('margin-left', '0', viewTable);
+            writer.setStyle('margin-right', 'auto', viewTable);
+          }
+          else if (viewTable.hasClass('civi-email-align-right')) {
+            writer.setStyle('margin-left', 'auto', viewTable);
+            writer.setStyle('margin-right', '0', viewTable);
+          }
+        }, {priority: 'lowest'});
+      });
+    }
+
+    afterInit() {
+      var processor = this.editor.data.processor;
+      var toView = processor.toView.bind(processor);
+      processor.toView = function(html) {
+        if (typeof html === 'string' && html.trim() !== '') {
+          html = rewriteBody(html, preserveLegacyEmailLayout);
+        }
+        return toView(html);
+      };
+      var toData = processor.toData.bind(processor);
+      processor.toData = function(viewFragment) {
+        return restoreEmptyCells(toData(viewFragment));
+      };
+    }
+  }
+
+  function preserveLegacyEmailLayout(root) {
+    root.querySelectorAll('[align]').forEach(function(element) {
+      const alignment = String(element.getAttribute('align') || '').toLowerCase();
+      if (!['left', 'center', 'right', 'justify'].includes(alignment)) return;
+      if (element.tagName === 'TABLE') {
+        if (alignment === 'center') {
+          element.classList.add('civi-email-align-center');
+          if (!element.style.marginLeft) element.style.marginLeft = 'auto';
+          if (!element.style.marginRight) element.style.marginRight = 'auto';
+        }
+        else if (alignment === 'left' || alignment === 'right') {
+          element.classList.add(`civi-email-align-${alignment}`);
+          if (!element.style.marginLeft) element.style.marginLeft = alignment === 'right' ? 'auto' : '0';
+          if (!element.style.marginRight) element.style.marginRight = alignment === 'left' ? 'auto' : '0';
+        }
+      }
+      else if (!element.style.textAlign) {
+        element.style.textAlign = alignment;
+      }
+    });
+    // CKEditor saves every empty cell with &nbsp; in it, and once loaded an
+    // empty cell looks the same as one holding &nbsp;. Mark the cells that
+    // are stored empty (or only hold comments) so they are saved empty
+    // again; see restoreEmptyCells().
+    root.querySelectorAll('td, th').forEach(function(cell) {
+      const empty = Array.from(cell.childNodes).every(node => node.nodeName === '#comment'
+        || (node.nodeName === '#text' && /^[ \t\n\r\f]*$/.test(node.data)));
+      if (empty) cell.classList.add('civi-email-empty-cell');
+    });
+    root.querySelectorAll('[valign]').forEach(function(element) {
+      if (!element.style.verticalAlign) element.style.verticalAlign = element.getAttribute('valign');
+    });
+    root.querySelectorAll('[bgcolor]').forEach(function(element) {
+      if (!element.style.backgroundColor) element.style.backgroundColor = element.getAttribute('bgcolor');
+    });
+    root.querySelectorAll('td, th').forEach(function(cell) {
+      if (cell.children.length === 1 && cell.firstElementChild.tagName === 'TABLE') {
+        const innerTable = cell.firstElementChild;
+        let alignSource = cell;
+        let cellAlign = '';
+        while (alignSource && !cellAlign) {
+          cellAlign = String(alignSource.getAttribute('align') || (alignSource.style && alignSource.style.textAlign) || '').toLowerCase();
+          alignSource = alignSource.parentElement && typeof alignSource.parentElement.closest === 'function'
+            ? alignSource.parentElement.closest('td, th')
+            : null;
+        }
+        if (cellAlign === 'center' && !innerTable.classList.contains('civi-email-align-center')) {
+          innerTable.classList.add('civi-email-align-center');
+          if (!innerTable.style.marginLeft) innerTable.style.marginLeft = 'auto';
+          if (!innerTable.style.marginRight) innerTable.style.marginRight = 'auto';
+        }
+        else if ((cellAlign === 'left' || cellAlign === 'right') && !innerTable.classList.contains(`civi-email-align-${cellAlign}`)) {
+          innerTable.classList.add(`civi-email-align-${cellAlign}`);
+          if (!innerTable.style.marginLeft) innerTable.style.marginLeft = cellAlign === 'right' ? 'auto' : '0';
+          if (!innerTable.style.marginRight) innerTable.style.marginRight = cellAlign === 'left' ? 'auto' : '0';
+        }
+      }
+      if (cell.children.length !== 1) return;
+      let child = cell.firstElementChild;
+      if (child.tagName === 'FIGURE' && child.classList.contains('image') && !child.querySelector('figcaption')) {
+        const image = child.querySelector('img');
+        const linkedImage = image && image.parentElement.tagName === 'A' ? image.parentElement : image;
+        if (linkedImage) {
+          cell.insertBefore(linkedImage, child);
+          child.remove();
+          child = linkedImage;
+          if (!cell.style.textAlign) cell.style.textAlign = 'center';
+        }
+      }
+      const image = child && child.tagName === 'IMG'
+        ? child
+        : child && child.tagName === 'A' && child.children.length === 1 && child.firstElementChild.tagName === 'IMG'
+          ? child.firstElementChild
+          : null;
+      if (!image) return;
+      if (image.style && image.style.display === 'block') {
+        image.style.display = 'inline-block';
+      }
+      const inlineWrapper = root.ownerDocument.createElement('span');
+      inlineWrapper.style.display = 'inline-block';
+      cell.insertBefore(inlineWrapper, child);
+      inlineWrapper.appendChild(child);
+    });
+  }
+
+  // Take out the &nbsp; that CKEditor fills a cell marked by
+  // preserveLegacyEmailLayout() with, so a cell stored empty, such as a
+  // coloured spacer row, doesn't gain a line of text height. A cell that has
+  // since been given content keeps it.
+  function restoreEmptyCells(html) {
+    if (!html.includes('civi-email-empty-cell')) return html;
+    return rewriteBody(html, root => root.querySelectorAll('.civi-email-empty-cell').forEach(function(cell) {
+      cell.classList.remove('civi-email-empty-cell');
+      if (!cell.classList.length) cell.removeAttribute('class');
+      const content = Array.from(cell.childNodes).filter(node => node.nodeName !== '#comment');
+      if (content.length === 1 && content[0].nodeName === '#text' && content[0].data === '\u00a0') {
+        content[0].remove();
+      }
+    }));
+  }
+
+  function findViewElement(viewElement, name) {
+    if (!viewElement) return null;
+    if (viewElement.is('element', name)) return viewElement;
+    if (typeof viewElement.getChildren === 'function') {
+      for (const child of viewElement.getChildren()) {
+        const found = findViewElement(child, name);
+        if (found) return found;
+      }
+    }
+    return null;
   }
 
   // Save page breaks without the page-break class. CiviCRM's print.css starts
@@ -163,6 +460,209 @@
         }
       }, {priority: 'lowest'});
     });
+  }
+
+  /**
+   * Keep HTML comments, including Outlook's conditional comments.
+   *
+   * Email templates use conditional comments (<!--[if mso]>...<![endif]-->)
+   * to give Outlook for Windows a fixed-width layout. CKEditor drops every
+   * comment on load unless its HtmlComment plugin is loaded, and this build
+   * doesn't include it (nor does upstream 1.9). This is that plugin from
+   * CKEditor 41.0.0 (ckeditor5-html-support/src/htmlcomment.ts), except that:
+   * - Comments next to each other keep their order (see the dataDowncast
+   *   converter below).
+   * - skipComments is turned off in afterInit(), because the FullPage plugin
+   *   replaces the data processor during init().
+   * - Marker ids come from a counter, because the build doesn't expose uid().
+   * - Only the methods its listeners use are kept.
+   *
+   * A comment placed directly in a table, between its rows, is still lost:
+   * CKEditor's table converter only reads the rows and cells.
+   */
+  class HtmlCommentOutput {
+    constructor(editor) {
+      this.editor = editor;
+    }
+
+    init() {
+      var editor = this.editor;
+      var plugin = this;
+      var loadedCommentsContent = new Map();
+      var commentCount = 0;
+
+      // Allow storing comment's content as the $root attribute with the name
+      // `$comment:<unique id>`.
+      editor.model.schema.addAttributeCheck(function(context, attributeName) {
+        if (context.endsWith('$root') && attributeName.startsWith('$comment')) {
+          return true;
+        }
+      });
+
+      // Convert the `$comment` view element to `$comment:<unique id>` marker
+      // and store its content (the comment itself) as a $root attribute. The
+      // comment content is needed in the `dataDowncast` pipeline to re-create
+      // the comment node.
+      editor.conversion.for('upcast').elementToMarker({
+        view: '$comment',
+        model: function(viewElement) {
+          var markerName = '$comment:crm' + (++commentCount);
+          loadedCommentsContent.set(markerName, viewElement.getCustomProperty('$rawContent'));
+          return markerName;
+        }
+      });
+
+      // Convert the `$comment` marker to `$comment` UI element with
+      // `$rawContent` custom property containing the comment content.
+      //
+      // HtmlComment does this with markerToElement(), which inserts a comment
+      // before any comment already converted at the same place, so comments
+      // next to each other swapped places on every save (an Outlook table's
+      // closing comment ended up before its opening one). Insert each comment
+      // after the ones already at its place instead.
+      var placedComments = new WeakMap();
+      editor.conversion.for('dataDowncast').add(function(dispatcher) {
+        dispatcher.on('addMarker:$comment', function(evt, data, conversionApi) {
+          var markerRange = data.markerRange;
+          if (!conversionApi.consumable.consume(markerRange, evt.name)) {
+            return;
+          }
+          var root;
+          for (var rootName of editor.model.document.getRootNames()) {
+            root = editor.model.document.getRoot(rootName);
+            if (root.hasAttribute(data.markerName)) {
+              break;
+            }
+          }
+          var writer = conversionApi.writer;
+          var comment = writer.createUIElement('$comment');
+          writer.setCustomProperty('$rawContent', root.getAttribute(data.markerName), comment);
+
+          // The last comment converted at each model position, in this conversion.
+          var placed = placedComments.get(conversionApi) || new Map();
+          placedComments.set(conversionApi, placed);
+          var place = markerRange.start.root.rootName + ':' + markerRange.start.path.join(',');
+          var previous = placed.get(place);
+          writer.insert(previous ? writer.createPositionAfter(previous) : conversionApi.mapper.toViewPosition(markerRange.start), comment);
+          placed.set(place, comment);
+
+          conversionApi.mapper.bindElementToMarker(comment, data.markerName);
+          evt.stop();
+        });
+      });
+
+      // Remove comments' markers and their corresponding $root attributes,
+      // which are moved to the graveyard.
+      editor.model.document.registerPostFixer(function(writer) {
+        var changed = false;
+        var markers = editor.model.document.differ.getChangedMarkers().filter(function(marker) {
+          return marker.name.startsWith('$comment:');
+        });
+        markers.forEach(function(marker) {
+          var oldRange = marker.data.oldRange;
+          var newRange = marker.data.newRange;
+          if (oldRange && newRange && oldRange.root == newRange.root) {
+            // The marker was moved in the same root. Don't do anything.
+            return;
+          }
+          if (oldRange) {
+            // The comment marker was moved from one root to another (most
+            // probably to the graveyard). Remove the related attribute from
+            // the previous root.
+            var oldRoot = oldRange.root;
+            if (oldRoot.hasAttribute(marker.name)) {
+              writer.removeAttribute(marker.name, oldRoot);
+              changed = true;
+            }
+          }
+          if (newRange) {
+            var newRoot = newRange.root;
+            if (newRoot.rootName == '$graveyard') {
+              // Comment marker was moved to the graveyard -- remove it entirely.
+              writer.removeMarker(marker.name);
+              changed = true;
+            }
+            else if (!newRoot.hasAttribute(marker.name)) {
+              // Comment marker was just added or was moved to another root -
+              // updated roots attributes.
+              writer.setAttribute(marker.name, loadedCommentsContent.get(marker.name) || '', newRoot);
+              changed = true;
+            }
+          }
+        });
+        return changed;
+      });
+
+      // Delete all comment markers from the document before setting new data.
+      editor.data.on('set', function() {
+        for (var commentMarker of editor.model.markers.getMarkersGroup('$comment')) {
+          plugin.removeHtmlComment(commentMarker.name);
+        }
+      }, {priority: 'high'});
+
+      // Delete all comment markers that are within a removed range.
+      // Delete all comment markers at the limit element boundaries if the
+      // whole content of the limit element is removed.
+      editor.model.on('deleteContent', function(evt, args) {
+        for (var range of args[0].getRanges()) {
+          var limitElement = editor.model.schema.getLimitElement(range);
+          var firstPosition = editor.model.createPositionAt(limitElement, 0);
+          var lastPosition = editor.model.createPositionAt(limitElement, 'end');
+          var affectedCommentIDs;
+          if (firstPosition.isTouching(range.start) && lastPosition.isTouching(range.end)) {
+            affectedCommentIDs = plugin.getHtmlCommentsInRange(editor.model.createRange(firstPosition, lastPosition));
+          }
+          else {
+            affectedCommentIDs = plugin.getHtmlCommentsInRange(range, {skipBoundaries: true});
+          }
+          affectedCommentIDs.forEach(function(commentMarkerID) {
+            plugin.removeHtmlComment(commentMarkerID);
+          });
+        }
+      }, {priority: 'high'});
+    }
+
+    afterInit() {
+      this.editor.data.processor.skipComments = false;
+    }
+
+    /**
+     * @param {String} commentID
+     * @return {Boolean}
+     *   Whether there was a comment with this id to remove.
+     */
+    removeHtmlComment(commentID) {
+      var marker = this.editor.model.markers.get(commentID);
+      if (!marker) {
+        return false;
+      }
+      this.editor.model.change(function(writer) {
+        writer.removeMarker(marker);
+      });
+      return true;
+    }
+
+    /**
+     * @param {Object} range
+     * @param {Object} [options]
+     *   skipBoundaries: leave out comments at the range boundaries.
+     * @return {String[]}
+     *   HTML comment ids.
+     */
+    getHtmlCommentsInRange(range, options) {
+      var includeBoundaries = !(options && options.skipBoundaries);
+      // Unfortunately, MarkerCollection#getMarkersAtPosition() filters out
+      // collapsed markers.
+      return Array.from(this.editor.model.markers.getMarkersGroup('$comment'))
+        .filter(function(marker) {
+          var position = marker.getRange().start;
+          return (position.isAfter(range.start) || (includeBoundaries && position.isEqual(range.start))) &&
+            (position.isBefore(range.end) || (includeBoundaries && position.isEqual(range.end)));
+        })
+        .map(function(marker) {
+          return marker.name;
+        });
+    }
   }
 
   /**
@@ -522,7 +1022,7 @@
           items: toolbarItems
         },
         language: (typeof CRM.config.locale == 'string' ? CRM.config.locale.substr(0, 2) : 'en'),
-        extraPlugins: [emailImageOutput, UnwrappedTableOutput, pageBreakOutput],
+        extraPlugins: [emailImageOutput, UnwrappedFigureOutput, pageBreakOutput, LegacyEmailLayout, HtmlCommentOutput],
         image: {
           // Resize in pixels, which email clients understand.
           resizeUnit: 'px',
