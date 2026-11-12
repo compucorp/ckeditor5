@@ -78,27 +78,31 @@
   }
 
   /**
-   * Save tables without the <figure class="table"> wrapper.
+   * Save tables and images without their <figure> wrappers.
    *
    * PDF engines and email clients give a figure default margins, so a table
-   * is indented and narrowed, and a fixed-width form can spill onto another
-   * page. Save the <table> on its own, carrying the figure's styles (its
-   * width and alignment). Upstream 1.9 gets the same result from CKEditor's
-   * PlainTableOutput plugin, which this build doesn't include.
+   * is indented and narrowed, a fixed-width form can spill onto another page,
+   * and an image gets space around it. Save the <table> or the image on its
+   * own. Upstream 1.9 gets the table result from CKEditor's PlainTableOutput
+   * plugin, which this build doesn't include.
    *
    * It wraps the data processor in afterInit(), because the FullPage plugin
    * replaces the data processor during init().
    */
-  class UnwrappedTableOutput {
+  class UnwrappedFigureOutput {
     constructor(editor) {
       this.editor = editor;
+    }
+
+    init() {
+      blockImageOutput(this.editor);
     }
 
     afterInit() {
       var processor = this.editor.data.processor;
       var toData = processor.toData.bind(processor);
       processor.toData = function(viewFragment) {
-        return unwrapTables(toData(viewFragment));
+        return unwrapFigures(toData(viewFragment));
       };
     }
   }
@@ -108,11 +112,14 @@
    *   A fragment, or a full document from the FullPage plugin.
    * @return {String}
    */
-  function unwrapTables(html) {
-    if (html.indexOf('<figure class="table') === -1) {
+  function unwrapFigures(html) {
+    if (html.indexOf('<figure class="table') === -1 && html.indexOf('<figure class="image') === -1) {
       return html;
     }
-    return rewriteBody(html, unwrapTableFigures);
+    return rewriteBody(html, function(root) {
+      unwrapTableFigures(root);
+      unwrapImageFigures(root);
+    });
   }
 
   /**
@@ -159,6 +166,116 @@
         table.insertBefore(caption, table.firstChild);
       }
       figure.replaceWith(table);
+    });
+  }
+
+  // Image styles that only the editor's stylesheet lays out, and the inline
+  // margins or float that give the same layout in an email.
+  var imageStyleMargins = {
+    alignCenter: ['auto', 'auto'],
+    alignBlockLeft: ['0', 'auto'],
+    alignBlockRight: ['auto', '0']
+  };
+  var imageStyleFloats = {
+    side: 'right',
+    alignRight: 'right',
+    alignLeft: 'left'
+  };
+
+  /**
+   * Lay out each block image on its <img>, ready for unwrapImageFigures().
+   *
+   * Once the <figure> is gone, CKEditor reads an <img> back as a block image
+   * only if it has display:block. Without it, the image came back as an
+   * inline image in a new paragraph on the next save. The image's style
+   * becomes inline margins or a float, and its class goes onto the <img> too,
+   * so the editor shows the same style when the content is opened again.
+   * Margins or a float already on the <img> are kept. A captioned image keeps
+   * its figure, so only gets display:block.
+   *
+   * This is done in the downcast, not on the saved HTML, so that CKEditor
+   * writes the style attribute and a second save gives the same HTML. On
+   * load, the display:block and the style's margins or float are taken as
+   * part of the image and its style, not kept as the <img>'s own styles, so
+   * changing the image's style or type later changes them too.
+   *
+   * @param {Object} editor
+   */
+  function blockImageOutput(editor) {
+    var styleClass = function(name) {
+      var definition = editor.plugins.get('ImageStyleEditing').normalizedStyles.find(function(definition) {
+        return definition.name === name;
+      });
+      return definition && definition.className;
+    };
+
+    editor.conversion.for('upcast').add(function(dispatcher) {
+      dispatcher.on('element:img', function(event, data, conversionApi) {
+        var img = data.viewItem;
+        var consumable = conversionApi.consumable;
+        if (img.getStyle('display') === 'block') {
+          consumable.consume(img, {styles: ['display']});
+        }
+        Object.keys(imageStyleMargins).forEach(function(name) {
+          var margins = imageStyleMargins[name];
+          if (img.hasClass(styleClass(name)) && img.getStyle('margin-left') === margins[0] && img.getStyle('margin-right') === margins[1]) {
+            consumable.consume(img, {styles: ['margin-left', 'margin-right']});
+          }
+        });
+        Object.keys(imageStyleFloats).forEach(function(name) {
+          if (img.hasClass(styleClass(name)) && img.getStyle('float') === imageStyleFloats[name]) {
+            consumable.consume(img, {styles: ['float']});
+          }
+        });
+      }, {priority: 'high'});
+    });
+
+    editor.conversion.for('dataDowncast').add(function(dispatcher) {
+      dispatcher.on('insert:imageBlock', function(event, data, conversionApi) {
+        var image = data.item;
+        var figure = conversionApi.mapper.toViewElement(image);
+        var img = figure && editor.plugins.get('ImageUtils').findViewImgElement(figure);
+        if (!img) {
+          return;
+        }
+        var writer = conversionApi.writer;
+        writer.setStyle('display', 'block', img);
+
+        var captioned = Array.from(image.getChildren()).some(function(child) {
+          return child.is('element', 'caption');
+        });
+        var style = image.getAttribute('imageStyle');
+        if (captioned || !style) {
+          return;
+        }
+        var saved = (image.getAttribute('htmlImgAttributes') || {}).styles || {};
+        if (imageStyleMargins[style] && !saved.margin && !saved['margin-left'] && !saved['margin-right']) {
+          writer.setStyle('margin-left', imageStyleMargins[style][0], img);
+          writer.setStyle('margin-right', imageStyleMargins[style][1], img);
+        }
+        if (imageStyleFloats[style] && !saved.float) {
+          writer.setStyle('float', imageStyleFloats[style], img);
+        }
+        if (styleClass(style)) {
+          writer.addClass(styleClass(style), img);
+        }
+      }, {priority: 'lowest'});
+    });
+  }
+
+  /**
+   * Replace each <figure class="image"> with the image (or its link). The
+   * image already carries its size and layout (see emailImageOutput and
+   * blockImageOutput). A captioned image keeps its figure.
+   *
+   * @param {DocumentFragment} root
+   */
+  function unwrapImageFigures(root) {
+    root.querySelectorAll('figure.image').forEach(function(figure) {
+      if (!figure.querySelector('img') || figure.querySelector(':scope > figcaption')) {
+        return;
+      }
+      figure.replaceWith.apply(figure, Array.from(figure.childNodes));
     });
   }
 
@@ -673,7 +790,7 @@
           items: toolbarItems
         },
         language: (typeof CRM.config.locale == 'string' ? CRM.config.locale.substr(0, 2) : 'en'),
-        extraPlugins: [emailImageOutput, UnwrappedTableOutput, pageBreakOutput, LegacyEmailLayout],
+        extraPlugins: [emailImageOutput, UnwrappedFigureOutput, pageBreakOutput, LegacyEmailLayout],
         image: {
           // Resize in pixels, which email clients understand.
           resizeUnit: 'px',
