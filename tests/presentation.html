@@ -130,6 +130,13 @@ window.CRM = {$, ts, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
   check(parse(editor.getData()).querySelector('td.body-copy').style.textAlign === 'left', 'left-aligned cell inside a centred cell stays left');
   editor.setData(editor.getData());
   check(parse(editor.getData()).querySelector('td.body-copy').style.textAlign === 'left', 'left-aligned cell inside a centred cell stays left after reload');
+  editor.setData('<table><tbody><tr><td class="styled-image"><figure class="image image-style-side"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="Styled image" width="200"></figure></td></tr></tbody></table>');
+  ['save', 'reload'].forEach(stage => {
+    if (stage === 'reload') editor.setData(editor.getData());
+    const styledCell = parse(editor.getData()).querySelector('td.styled-image');
+    check(styledCell.querySelector('.image-style-side'), stage + ': image alone in a cell keeps its image style');
+    check(styledCell.style.textAlign !== 'center' && !styledCell.querySelector('span'), stage + ': styled image alone in a cell is not made a centred inline image');
+  });
   editor.setData('<p>Image: </p>');
   const imageParagraph = Array.from(editor.model.createRangeIn(editor.model.document.getRoot()).getItems())
     .find(item => item.is('element', 'paragraph'));
