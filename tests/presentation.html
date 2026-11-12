@@ -137,6 +137,12 @@ window.CRM = {$, ts, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
     check(styledCell.querySelector('.image-style-side'), stage + ': image alone in a cell keeps its image style');
     check(styledCell.style.textAlign !== 'center' && !styledCell.querySelector('span'), stage + ': styled image alone in a cell is not made a centred inline image');
   });
+  editor.setData('<table><tbody><tr><td class="floated-image"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="Floated image" width="200" style="float:right"></td></tr></tbody></table>');
+  ['save', 'reload'].forEach(stage => {
+    if (stage === 'reload') editor.setData(editor.getData());
+    const floatedCell = parse(editor.getData()).querySelector('td.floated-image');
+    check(!floatedCell.querySelector('span') && floatedCell.querySelector('img.image-style-align-right'), stage + ': image floated right alone in a cell stays aligned right');
+  });
   editor.setData('<p>Image: </p>');
   const imageParagraph = Array.from(editor.model.createRangeIn(editor.model.document.getRoot()).getItems())
     .find(item => item.is('element', 'paragraph'));
