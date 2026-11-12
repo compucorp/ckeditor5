@@ -1022,7 +1022,15 @@
           items: toolbarItems
         },
         language: (typeof CRM.config.locale == 'string' ? CRM.config.locale.substr(0, 2) : 'en'),
-        extraPlugins: [emailImageOutput, UnwrappedFigureOutput, pageBreakOutput, LegacyEmailLayout, HtmlCommentOutput],
+        extraPlugins: [
+          emailImageOutput,
+          UnwrappedFigureOutput,
+          pageBreakOutput,
+          // Front-end editors don't hold email templates, and upstream's
+          // front-end preset doesn't rewrite their layout either.
+          ...(CRM.config.isFrontend ? [] : [LegacyEmailLayout]),
+          HtmlCommentOutput
+        ],
         image: {
           // Resize in pixels, which email clients understand.
           resizeUnit: 'px',
