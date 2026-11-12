@@ -172,6 +172,20 @@ window.CRM = {$, ts, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
   editor.setData('<p><span style="font-family:CustomFont;font-size:19px;color:#123456">Custom typography</span></p>');
   check(editor.getData().includes('CustomFont') && editor.getData().includes('19px'), 'unlisted font and size preserved');
   check(!editor.getData().includes('@media'), 'styles do not leak into the next document');
+  const outlookColumn = '<!--[if mso]><table width="600"><tr><td><![endif]--><p>Column</p><!--[if mso]></td></tr></table><![endif]-->';
+  editor.setData(outlookColumn);
+  for (const stage of ['save', 'reload']) {
+    const html = editor.getData();
+    check(html.startsWith('<!--[if mso]><table width="600"><tr><td><![endif]--><p>Column</p>'), stage + ': leading conditional comment preserved');
+    check(html.endsWith('<p>Column</p><!--[if mso]></td></tr></table><![endif]-->'), stage + ': closing conditional comment preserved');
+    editor.setData(html);
+  }
+  editor.setData('<table><tbody><tr><td><!--[if mso]>open<![endif]--><table><tbody><tr><td>Inner</td></tr></tbody></table><!--[if mso]>close<![endif]--></td></tr></tbody></table>');
+  const cellComments = editor.getData();
+  check(cellComments.indexOf('<!--[if mso]>open<![endif]-->') < cellComments.indexOf('Inner')
+    && cellComments.indexOf('Inner') < cellComments.indexOf('<!--[if mso]>close<![endif]-->'), 'comments around a nested table keep their place');
+  editor.setData('<!doctype html><html><head><title>Comments</title></head><body><!--[if mso]><center><![endif]--><p>Body</p><!--[if mso]></center><![endif]--></body></html>');
+  check(editor.getData().includes('<body><!--[if mso]><center><![endif]--><p>Body</p><!--[if mso]></center><![endif]--></body>'), 'comments in a full document body preserved');
   const backgroundUrl = new URL('../images/enable.png', location.href).href;
   editor.setData('<table background="' + backgroundUrl + '"><tr><td>Background</td></tr></table>');
   check(parse(editor.getData()).querySelector('table').getAttribute('background') === backgroundUrl, 'legacy HTTP(S) table background preserved');

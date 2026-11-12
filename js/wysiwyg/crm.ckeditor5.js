@@ -539,6 +539,14 @@
     });
   }
 
+  // DOMParser leaves comments that come before a fragment's first element on
+  // the document, outside <body>, so the editor never saw them. In email
+  // templates that is often the Outlook conditional comment that opens a
+  // fixed-width table, while the comment that closes it was kept.
+  function leadingFragmentComments(parsed) {
+    return Array.from(parsed.childNodes || []).filter(node => node.nodeName === '#comment');
+  }
+
   function preserveTemplateStyles(editor) {
     const rawMode = editor.config.get('civiRawHtmlMode') === true;
     const preserveStyles = editor.config.get('civiPreserveTemplateStyles') !== false;
@@ -641,7 +649,7 @@
         }
         const styles = Array.from(parsed.head.querySelectorAll('style'));
         preserveLegacyEmailLayout(parsed.body);
-        parsed.body.prepend(...styles);
+        parsed.body.prepend(...leadingFragmentComments(parsed), ...styles);
         data = parsed.body.innerHTML;
       }
       else if (preserveStyles && typeof data === 'string' && data.trim() !== '') {
@@ -649,7 +657,7 @@
         const parsed = new DOMParser().parseFromString(data, 'text/html');
         const styles = Array.from(parsed.head.querySelectorAll('style'));
         preserveLegacyEmailLayout(parsed.body);
-        parsed.body.prepend(...styles);
+        parsed.body.prepend(...leadingFragmentComments(parsed), ...styles);
         data = parsed.body.innerHTML;
       }
       else if (isSettingData) {
@@ -1142,15 +1150,22 @@
     ];
 
     const emailSafePreset = preset === 'default' || preset === 'civimail';
+    // Keep HTML comments, such as Outlook's conditional comments, which
+    // CKEditor otherwise drops. The plugin is in the bundled build but isn't
+    // one of the editor's built-in plugins.
+    const htmlComment = window.CKEDITOR && window.CKEDITOR.HtmlComment;
 
     let editorConfig = {
       htmlSupport: presentationHtmlSupport(),
       civiDataFormat: 'html',
       civiPasteMarkdown: true,
       removePlugins: ['Markdown'],
-      extraPlugins: emailSafePreset
-        ? [preserveTemplateStyles, pageBreakOutput, emailImageOutput]
-        : [preserveTemplateStyles, pageBreakOutput],
+      extraPlugins: [
+        preserveTemplateStyles,
+        pageBreakOutput,
+        ...(emailSafePreset ? [emailImageOutput] : []),
+        ...(htmlComment ? [htmlComment] : [])
+      ],
       civiPreserveTemplateStyles: true,
       civiEmailImageMaxWidth: emailSafePreset ? 600 : false,
       fontFamily: {supportAllValues: true},
