@@ -334,6 +334,13 @@
     }
   }
 
+  // An image given a style in the editor, such as aligned left or set beside
+  // the text, is left as it is when it sits alone in a table cell, so it
+  // keeps that style instead of becoming a centred inline image.
+  function hasImageStyle(element) {
+    return Array.from(element.classList || []).some(name => name.startsWith('image-style-'));
+  }
+
   function preserveLegacyEmailLayout(root) {
     root.querySelectorAll('[align]').forEach(function(element) {
       const alignment = String(element.getAttribute('align') || '').toLowerCase();
@@ -393,7 +400,7 @@
       }
       if (cell.children.length !== 1) return;
       let child = cell.firstElementChild;
-      if (child.tagName === 'FIGURE' && child.classList.contains('image') && !child.querySelector('figcaption')) {
+      if (child.tagName === 'FIGURE' && child.classList.contains('image') && !child.querySelector('figcaption') && !hasImageStyle(child)) {
         const image = child.querySelector('img');
         const linkedImage = image && image.parentElement.tagName === 'A' ? image.parentElement : image;
         if (linkedImage) {
@@ -408,7 +415,7 @@
         : child && child.tagName === 'A' && child.children.length === 1 && child.firstElementChild.tagName === 'IMG'
           ? child.firstElementChild
           : null;
-      if (!image) return;
+      if (!image || hasImageStyle(image)) return;
       if (image.style && image.style.display === 'block') {
         image.style.display = 'inline-block';
       }
