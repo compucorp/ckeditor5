@@ -879,7 +879,13 @@
       const figures = Array.from(writer.createRangeIn(viewFragment).getItems()).filter(item => item.is('element', 'figure')
         && item.hasClass('image')
         && !Array.from(item.getChildren()).some(child => child.is('element', 'figcaption')));
-      figures.forEach(figure => writer.unwrapElement(figure));
+      figures.forEach(figure => {
+        // Keep an image style, such as image-style-side, on the <img>.
+        const styles = Array.from(figure.getClassNames()).filter(name => name.startsWith('image-style-'));
+        const image = Array.from(writer.createRangeIn(figure).getItems()).find(item => item.is('element', 'img'));
+        if (image && styles.length) writer.addClass(styles, image);
+        writer.unwrapElement(figure);
+      });
       return toData(viewFragment);
     };
   }

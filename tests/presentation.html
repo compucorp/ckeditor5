@@ -181,6 +181,11 @@ window.CRM = {$, ts, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
   }
   editor.setData('<figure class="image"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="Captioned" width="300" height="200"><figcaption>Caption</figcaption></figure>');
   check(parse(editor.getData()).querySelector('figure.image > figcaption'), 'CiviMail captioned image keeps its figure');
+  editor.setData('<figure class="image image-style-side"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="Styled" width="300" height="200"></figure><p>Text</p>');
+  for (const stage of ['save', 'reload']) {
+    check(parse(editor.getData()).querySelector('img.image-style-side'), stage + ': CiviMail block image keeps its image style without figure markup');
+    editor.setData(editor.getData());
+  }
   editor.setData('<p><span style="font-family:CustomFont;font-size:19px;color:#123456">Custom typography</span></p>');
   check(editor.getData().includes('CustomFont') && editor.getData().includes('19px'), 'unlisted font and size preserved');
   check(!editor.getData().includes('@media'), 'styles do not leak into the next document');
