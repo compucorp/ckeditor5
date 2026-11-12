@@ -169,6 +169,18 @@ window.CRM = {$, ts, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
   const centredMargins = getComputedStyle(centredFigure);
   check(getComputedStyle(plainFigure).marginLeft === '0px', 'unaligned table is shown at the left, where it is sent');
   check(parseFloat(centredMargins.marginLeft) > 0 && centredMargins.marginLeft === centredMargins.marginRight, 'centred table is still shown centred');
+  const blockImages = '<p>Intro</p><figure class="image"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="Saved block" width="300" height="200"></figure>'
+    + '<table><tbody><tr><td><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="Card" style="display:block" width="280" height="160"><p>Card text</p></td></tr></tbody></table>';
+  editor.setData(blockImages);
+  for (const stage of ['save', 'reload']) {
+    const doc = parse(editor.getData());
+    check(!doc.querySelector('figure.image'), stage + ': CiviMail block images saved without figure markup');
+    check(doc.querySelector('body > img[alt="Saved block"]').style.display === 'block'
+      && doc.querySelector('td > img[alt="Card"]').style.display === 'block', stage + ': CiviMail block images stay block images');
+    editor.setData(editor.getData());
+  }
+  editor.setData('<figure class="image"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="Captioned" width="300" height="200"><figcaption>Caption</figcaption></figure>');
+  check(parse(editor.getData()).querySelector('figure.image > figcaption'), 'CiviMail captioned image keeps its figure');
   editor.setData('<p><span style="font-family:CustomFont;font-size:19px;color:#123456">Custom typography</span></p>');
   check(editor.getData().includes('CustomFont') && editor.getData().includes('19px'), 'unlisted font and size preserved');
   check(!editor.getData().includes('@media'), 'styles do not leak into the next document');

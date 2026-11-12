@@ -816,10 +816,16 @@
   }
 
   // Export CiviMail images with dimensions understood by email clients.
+  //
+  // A block image is also saved without its <figure>, which email clients
+  // show with default margins. Its <img> gets display:block, which is how
+  // the editor recognises a block image without a figure when the content
+  // is opened again. A captioned image keeps its figure.
   function emailImageOutput(editor) {
     const configuredMaxWidth = Number(editor.config.get('civiEmailImageMaxWidth'));
     if (!Number.isFinite(configuredMaxWidth) || configuredMaxWidth <= 0) return;
     const maxWidth = Math.round(configuredMaxWidth);
+    const hasCaption = image => Array.from(image.getChildren()).some(child => child.is('element', 'caption'));
 
     editor.conversion.for('dataDowncast').add(function(dispatcher) {
       const convertImage = function(event, data, conversionApi) {
@@ -828,6 +834,9 @@
         if (!viewImage) return;
 
         const writer = conversionApi.writer;
+        if (image.is('element', 'imageBlock') && !hasCaption(image)) {
+          writer.setStyle('display', 'block', viewImage);
+        }
         writer.setAttribute('border', '0', viewImage);
         writer.setStyle('max-width', '100%', viewImage);
         writer.setStyle('height', 'auto', viewImage);
@@ -860,6 +869,19 @@
       dispatcher.on('insert:imageInline', convertImage, {priority: 'lowest'});
       dispatcher.on('insert:imageBlock', convertImage, {priority: 'lowest'});
     });
+
+    const UpcastWriter = window.CKEDITOR && (window.CKEDITOR.ViewUpcastWriter || window.CKEDITOR.UpcastWriter);
+    const processor = editor.data.processor;
+    if (!UpcastWriter || typeof processor.toData !== 'function') return;
+    const toData = processor.toData.bind(processor);
+    processor.toData = function(viewFragment) {
+      const writer = new UpcastWriter(editor.data.viewDocument);
+      const figures = Array.from(writer.createRangeIn(viewFragment).getItems()).filter(item => item.is('element', 'figure')
+        && item.hasClass('image')
+        && !Array.from(item.getChildren()).some(child => child.is('element', 'figcaption')));
+      figures.forEach(figure => writer.unwrapElement(figure));
+      return toData(viewFragment);
+    };
   }
 
   // Save page breaks without the page-break class. CiviCRM's print.css starts
