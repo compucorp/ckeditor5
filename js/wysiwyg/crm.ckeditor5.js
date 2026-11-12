@@ -434,6 +434,209 @@
   }
 
   /**
+   * Keep HTML comments, including Outlook's conditional comments.
+   *
+   * Email templates use conditional comments (<!--[if mso]>...<![endif]-->)
+   * to give Outlook for Windows a fixed-width layout. CKEditor drops every
+   * comment on load unless its HtmlComment plugin is loaded, and this build
+   * doesn't include it (nor does upstream 1.9). This is that plugin from
+   * CKEditor 41.0.0 (ckeditor5-html-support/src/htmlcomment.ts), except that:
+   * - Comments next to each other keep their order (see the dataDowncast
+   *   converter below).
+   * - skipComments is turned off in afterInit(), because the FullPage plugin
+   *   replaces the data processor during init().
+   * - Marker ids come from a counter, because the build doesn't expose uid().
+   * - Only the methods its listeners use are kept.
+   *
+   * A comment placed directly in a table, between its rows, is still lost:
+   * CKEditor's table converter only reads the rows and cells.
+   */
+  class HtmlCommentOutput {
+    constructor(editor) {
+      this.editor = editor;
+    }
+
+    init() {
+      var editor = this.editor;
+      var plugin = this;
+      var loadedCommentsContent = new Map();
+      var commentCount = 0;
+
+      // Allow storing comment's content as the $root attribute with the name
+      // `$comment:<unique id>`.
+      editor.model.schema.addAttributeCheck(function(context, attributeName) {
+        if (context.endsWith('$root') && attributeName.startsWith('$comment')) {
+          return true;
+        }
+      });
+
+      // Convert the `$comment` view element to `$comment:<unique id>` marker
+      // and store its content (the comment itself) as a $root attribute. The
+      // comment content is needed in the `dataDowncast` pipeline to re-create
+      // the comment node.
+      editor.conversion.for('upcast').elementToMarker({
+        view: '$comment',
+        model: function(viewElement) {
+          var markerName = '$comment:crm' + (++commentCount);
+          loadedCommentsContent.set(markerName, viewElement.getCustomProperty('$rawContent'));
+          return markerName;
+        }
+      });
+
+      // Convert the `$comment` marker to `$comment` UI element with
+      // `$rawContent` custom property containing the comment content.
+      //
+      // HtmlComment does this with markerToElement(), which inserts a comment
+      // before any comment already converted at the same place, so comments
+      // next to each other swapped places on every save (an Outlook table's
+      // closing comment ended up before its opening one). Insert each comment
+      // after the ones already at its place instead.
+      var placedComments = new WeakMap();
+      editor.conversion.for('dataDowncast').add(function(dispatcher) {
+        dispatcher.on('addMarker:$comment', function(evt, data, conversionApi) {
+          var markerRange = data.markerRange;
+          if (!conversionApi.consumable.consume(markerRange, evt.name)) {
+            return;
+          }
+          var root;
+          for (var rootName of editor.model.document.getRootNames()) {
+            root = editor.model.document.getRoot(rootName);
+            if (root.hasAttribute(data.markerName)) {
+              break;
+            }
+          }
+          var writer = conversionApi.writer;
+          var comment = writer.createUIElement('$comment');
+          writer.setCustomProperty('$rawContent', root.getAttribute(data.markerName), comment);
+
+          // The last comment converted at each model position, in this conversion.
+          var placed = placedComments.get(conversionApi) || new Map();
+          placedComments.set(conversionApi, placed);
+          var place = markerRange.start.root.rootName + ':' + markerRange.start.path.join(',');
+          var previous = placed.get(place);
+          writer.insert(previous ? writer.createPositionAfter(previous) : conversionApi.mapper.toViewPosition(markerRange.start), comment);
+          placed.set(place, comment);
+
+          conversionApi.mapper.bindElementToMarker(comment, data.markerName);
+          evt.stop();
+        });
+      });
+
+      // Remove comments' markers and their corresponding $root attributes,
+      // which are moved to the graveyard.
+      editor.model.document.registerPostFixer(function(writer) {
+        var changed = false;
+        var markers = editor.model.document.differ.getChangedMarkers().filter(function(marker) {
+          return marker.name.startsWith('$comment:');
+        });
+        markers.forEach(function(marker) {
+          var oldRange = marker.data.oldRange;
+          var newRange = marker.data.newRange;
+          if (oldRange && newRange && oldRange.root == newRange.root) {
+            // The marker was moved in the same root. Don't do anything.
+            return;
+          }
+          if (oldRange) {
+            // The comment marker was moved from one root to another (most
+            // probably to the graveyard). Remove the related attribute from
+            // the previous root.
+            var oldRoot = oldRange.root;
+            if (oldRoot.hasAttribute(marker.name)) {
+              writer.removeAttribute(marker.name, oldRoot);
+              changed = true;
+            }
+          }
+          if (newRange) {
+            var newRoot = newRange.root;
+            if (newRoot.rootName == '$graveyard') {
+              // Comment marker was moved to the graveyard -- remove it entirely.
+              writer.removeMarker(marker.name);
+              changed = true;
+            }
+            else if (!newRoot.hasAttribute(marker.name)) {
+              // Comment marker was just added or was moved to another root -
+              // updated roots attributes.
+              writer.setAttribute(marker.name, loadedCommentsContent.get(marker.name) || '', newRoot);
+              changed = true;
+            }
+          }
+        });
+        return changed;
+      });
+
+      // Delete all comment markers from the document before setting new data.
+      editor.data.on('set', function() {
+        for (var commentMarker of editor.model.markers.getMarkersGroup('$comment')) {
+          plugin.removeHtmlComment(commentMarker.name);
+        }
+      }, {priority: 'high'});
+
+      // Delete all comment markers that are within a removed range.
+      // Delete all comment markers at the limit element boundaries if the
+      // whole content of the limit element is removed.
+      editor.model.on('deleteContent', function(evt, args) {
+        for (var range of args[0].getRanges()) {
+          var limitElement = editor.model.schema.getLimitElement(range);
+          var firstPosition = editor.model.createPositionAt(limitElement, 0);
+          var lastPosition = editor.model.createPositionAt(limitElement, 'end');
+          var affectedCommentIDs;
+          if (firstPosition.isTouching(range.start) && lastPosition.isTouching(range.end)) {
+            affectedCommentIDs = plugin.getHtmlCommentsInRange(editor.model.createRange(firstPosition, lastPosition));
+          }
+          else {
+            affectedCommentIDs = plugin.getHtmlCommentsInRange(range, {skipBoundaries: true});
+          }
+          affectedCommentIDs.forEach(function(commentMarkerID) {
+            plugin.removeHtmlComment(commentMarkerID);
+          });
+        }
+      }, {priority: 'high'});
+    }
+
+    afterInit() {
+      this.editor.data.processor.skipComments = false;
+    }
+
+    /**
+     * @param {String} commentID
+     * @return {Boolean}
+     *   Whether there was a comment with this id to remove.
+     */
+    removeHtmlComment(commentID) {
+      var marker = this.editor.model.markers.get(commentID);
+      if (!marker) {
+        return false;
+      }
+      this.editor.model.change(function(writer) {
+        writer.removeMarker(marker);
+      });
+      return true;
+    }
+
+    /**
+     * @param {Object} range
+     * @param {Object} [options]
+     *   skipBoundaries: leave out comments at the range boundaries.
+     * @return {String[]}
+     *   HTML comment ids.
+     */
+    getHtmlCommentsInRange(range, options) {
+      var includeBoundaries = !(options && options.skipBoundaries);
+      // Unfortunately, MarkerCollection#getMarkersAtPosition() filters out
+      // collapsed markers.
+      return Array.from(this.editor.model.markers.getMarkersGroup('$comment'))
+        .filter(function(marker) {
+          var position = marker.getRange().start;
+          return (position.isAfter(range.start) || (includeBoundaries && position.isEqual(range.start))) &&
+            (position.isBefore(range.end) || (includeBoundaries && position.isEqual(range.end)));
+        })
+        .map(function(marker) {
+          return marker.name;
+        });
+    }
+  }
+
+  /**
    * Save an empty editor as an empty value.
    *
    * The FullPage plugin turns off trimming, so an editor with nothing in it
@@ -790,7 +993,7 @@
           items: toolbarItems
         },
         language: (typeof CRM.config.locale == 'string' ? CRM.config.locale.substr(0, 2) : 'en'),
-        extraPlugins: [emailImageOutput, UnwrappedFigureOutput, pageBreakOutput, LegacyEmailLayout],
+        extraPlugins: [emailImageOutput, UnwrappedFigureOutput, pageBreakOutput, LegacyEmailLayout, HtmlCommentOutput],
         image: {
           // Resize in pixels, which email clients understand.
           resizeUnit: 'px',
