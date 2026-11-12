@@ -4,6 +4,29 @@
   position: relative;
 }
 
+/*
+ * Keep long content scrolling inside the editor, as CKEditor 4 did, so the
+ * toolbar stays on screen. Without a cap the editor grows to fit the whole
+ * email and the toolbar scrolls off the page.
+ */
+.ck.ck-editor__main > .ck-editor__editable {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/*
+ * Source view sizes its box to the full text. Cap the box and let the
+ * textarea scroll, otherwise scrolling the box shows blank space below it.
+ */
+.ck.ck-editor__main > .ck-source-editing-area {
+  max-height: 70vh;
+  overflow: hidden;
+}
+
+.ck.ck-editor__main > .ck-source-editing-area textarea {
+  overflow-y: auto;
+}
+
 /* Set the width of the editor */
 .ck.ck-editor {
   max-width: 95%;
