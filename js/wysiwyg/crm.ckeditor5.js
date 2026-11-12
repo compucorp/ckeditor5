@@ -415,7 +415,9 @@
         : child && child.tagName === 'A' && child.children.length === 1 && child.firstElementChild.tagName === 'IMG'
           ? child.firstElementChild
           : null;
-      if (!image || hasImageStyle(image)) return;
+      // A CKEditor 4 image aligned left or right is saved with a float, which
+      // an inline-block span around it would hold at the left.
+      if (!image || hasImageStyle(image) || (image.style && ['left', 'right'].includes(image.style.cssFloat))) return;
       if (image.style && image.style.display === 'block') {
         image.style.display = 'inline-block';
       }
