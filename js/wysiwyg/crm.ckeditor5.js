@@ -458,6 +458,14 @@
         element.style.textAlign = alignment;
       }
     });
+    // CKEditor doesn't keep left, the default cell alignment, so a left-aligned
+    // cell inside a centred one would inherit the centring. Mark it, and write
+    // text-align back on save.
+    root.querySelectorAll('td, th').forEach(function(cell) {
+      if (String(cell.style.textAlign || '').toLowerCase() === 'left') {
+        cell.classList.add('civi-email-align-left');
+      }
+    });
     root.querySelectorAll('[valign]').forEach(function(element) {
       if (!element.style.verticalAlign) element.style.verticalAlign = element.getAttribute('valign');
     });
@@ -732,6 +740,12 @@
     }
     if (preserveStyles && editor.conversion && typeof editor.conversion.for === 'function') {
       editor.conversion.for('dataDowncast').add(function(dispatcher) {
+        dispatcher.on('insert:tableCell', function(event, data, conversionApi) {
+          const viewCell = conversionApi.mapper.toViewElement(data.item);
+          if (viewCell && viewCell.hasClass('civi-email-align-left') && !data.item.getAttribute('tableCellHorizontalAlignment')) {
+            conversionApi.writer.setStyle('text-align', 'left', viewCell);
+          }
+        }, {priority: 'lowest'});
         dispatcher.on('insert:table', function(event, data, conversionApi) {
           const viewTable = findViewElement(conversionApi.mapper.toViewElement(data.item), 'table');
           if (!viewTable) return;

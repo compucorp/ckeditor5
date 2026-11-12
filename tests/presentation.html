@@ -124,6 +124,12 @@ window.CRM = {$, ts, _: {}, wysiwyg: {}, config: {locale: 'en_US'}};
   check(fragmentOutput.querySelector('style.mail-fragment') || fragmentOutput.querySelector('style'), 'fragment: stylesheet preserved');
   check(fragmentCell.style.textAlign === 'center', 'fragment: previously saved CKEditor image regains centering');
   check(fragmentCell.querySelector('span img') && !fragmentCell.querySelector('figure.image'), 'fragment: previously saved CKEditor image becomes inline');
+  editor.setData(`<table role="presentation"><tbody><tr><td align="center">
+    <table class="nested-content" role="presentation"><tbody><tr><td class="body-copy" align="left"><p>Body copy</p></td></tr></tbody></table>
+    </td></tr></tbody></table>`);
+  check(parse(editor.getData()).querySelector('td.body-copy').style.textAlign === 'left', 'left-aligned cell inside a centred cell stays left');
+  editor.setData(editor.getData());
+  check(parse(editor.getData()).querySelector('td.body-copy').style.textAlign === 'left', 'left-aligned cell inside a centred cell stays left after reload');
   editor.setData('<p>Image: </p>');
   const imageParagraph = Array.from(editor.model.createRangeIn(editor.model.document.getRoot()).getItems())
     .find(item => item.is('element', 'paragraph'));
