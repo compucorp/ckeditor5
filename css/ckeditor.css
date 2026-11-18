@@ -76,6 +76,15 @@ html body .ck-content .table:has(> table.civi-email-align-right) {
   margin-right: 0;
 }
 
+/*
+ * Let a table that is 100% wide, such as an email's background table, fill
+ * the editor as it fills the email. CKEditor draws a table at the width of
+ * the box around it, and that box shrinks to the table's content.
+ */
+html body .ck-content .table:has(> table[width="100%"]) {
+  width: 100%;
+}
+
 /* Legacy email table alignment must remain visible in both normal and
  * fullscreen editing without inheriting CiviCRM's generic table styles. */
 html body .ck-content table.civi-email-align-center {
