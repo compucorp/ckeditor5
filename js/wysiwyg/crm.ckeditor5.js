@@ -19,6 +19,16 @@
   // width of an email body.
   var emailImageMaxWidth = 600;
 
+  // The image resize menu: a quarter, half and three quarters of
+  // emailImageMaxWidth. CKEditor's own presets are 25, 50 and 75 in
+  // resizeUnit, which in pixels are thumbnails.
+  var emailImageResizeOptions = [
+    {name: 'resizeImage:original', value: null, icon: 'original'},
+    {name: 'resizeImage:150', value: '150', icon: 'small'},
+    {name: 'resizeImage:300', value: '300', icon: 'medium'},
+    {name: 'resizeImage:450', value: '450', icon: 'large'}
+  ];
+
   /**
    * Write each image's display size onto the <img> itself.
    *
@@ -1043,6 +1053,7 @@
         image: {
           // Resize in pixels, which email clients understand.
           resizeUnit: 'px',
+          resizeOptions: emailImageResizeOptions,
           toolbar: [
             'imageStyle:inline',
             'imageStyle:block',
