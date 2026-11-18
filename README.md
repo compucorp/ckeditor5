@@ -103,8 +103,11 @@ not expose block-image styles, preventing newly inserted email images from
 returning to the browser-oriented figure markup. Exported images receive
 explicit proportional dimensions, `height:auto`, `max-width:100%` and no
 legacy border. Images which were not resized are capped at 600 pixels by
-default; `civiEmailImageMaxWidth` can override that limit. Other presets retain
-the full block and inline image toolbar.
+default; `civiEmailImageMaxWidth` can override that limit. The resize menu
+offers 150, 300 and 450 pixels, a quarter, half and three quarters of the
+default 600; a preset that lowers the limit below 450 should set its own
+`image.resizeOptions`. Other presets retain the full block and inline image
+toolbar.
 
 `<style>` blocks and their media queries are retained through General HTML Support.
 When loading a complete HTML document (`<!doctype>`, `<html>`, `<head>`, `<body>`),

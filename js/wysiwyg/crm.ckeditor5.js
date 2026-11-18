@@ -824,6 +824,17 @@
     return null;
   }
 
+  // The image resize menu for email: a quarter, half and three quarters of
+  // the 600px email width. CKEditor's own presets are 25, 50 and 75 in
+  // resizeUnit, which in pixels are thumbnails.
+  const emailImageResizeOptions = [
+    {name: 'resizeImage:original', value: null, icon: 'original'},
+    {name: 'resizeImage:custom', value: 'custom', icon: 'custom'},
+    {name: 'resizeImage:150', value: '150', icon: 'small'},
+    {name: 'resizeImage:300', value: '300', icon: 'medium'},
+    {name: 'resizeImage:450', value: '450', icon: 'large'}
+  ];
+
   // Export CiviMail images with dimensions understood by email clients.
   //
   // A block image is also saved without its <figure>, which email clients
@@ -1307,6 +1318,7 @@
         ...(emailSafePreset ? {
           insert: {type: 'inline'},
           resizeUnit: 'px',
+          resizeOptions: emailImageResizeOptions,
           toolbar: ['imageResize', '|', 'imageTextAlternative'],
           styles: ['inline']
         } : {

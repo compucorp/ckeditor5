@@ -182,6 +182,13 @@ test('unconfigured default and civimail presets share email-safe images while ot
     if (preset === 'default' || preset === 'civimail') {
       assert.deepEqual(presentation.image.insert, {type: 'inline'});
       assert.equal(presentation.image.resizeUnit, 'px');
+      assert.deepEqual(presentation.image.resizeOptions, [
+        {name: 'resizeImage:original', value: null, icon: 'original'},
+        {name: 'resizeImage:custom', value: 'custom', icon: 'custom'},
+        {name: 'resizeImage:150', value: '150', icon: 'small'},
+        {name: 'resizeImage:300', value: '300', icon: 'medium'},
+        {name: 'resizeImage:450', value: '450', icon: 'large'}
+      ]);
       assert.deepEqual(presentation.image.toolbar, ['imageResize', '|', 'imageTextAlternative']);
       assert.deepEqual(presentation.image.styles, ['inline']);
       assert.equal(presentation.civiEmailImageMaxWidth, 600);
@@ -193,6 +200,7 @@ test('unconfigured default and civimail presets share email-safe images while ot
       assert.equal(presentation.extraPlugins.length, 2);
       assert.equal(presentation.table.tableProperties.alignment.useInlineStyles, false);
       assert.ok(presentation.image.styles.includes('block'));
+      assert.equal(presentation.image.resizeOptions, undefined);
       presentation.table.tableProperties.alignment.useInlineStyles = true;
       delete presentation.image;
       delete presentation.civiEmailImageMaxWidth;
