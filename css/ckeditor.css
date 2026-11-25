@@ -122,6 +122,18 @@ html body .ck.ck-editor__main * {
   color: black;
 }
 
+/* Show links as links. The rule above made them black too, so they could
+ * only be told apart on hover. Text inside a link takes the link colour, and
+ * a colour set on the text in the editor, an inline style, still wins. */
+html body .ck.ck-editor__main a,
+html body .ck.ck-editor__main a * {
+  color: #0071bd;
+}
+
+html body .ck.ck-editor__main a {
+  text-decoration: underline;
+}
+
 .ck-content .crm-lead {
   font-size: 1.15em;
   line-height: 1.5;
