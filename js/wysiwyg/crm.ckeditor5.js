@@ -466,6 +466,31 @@
     return null;
   }
 
+  // Centre a table set to Centre in the table properties. CKEditor writes
+  // float:none for it, which centres nothing. Auto margins centre it, and
+  // align="center" does in Outlook, which ignores auto margins. The margins go
+  // on the figure, like CKEditor's float; on save the figure is removed and
+  // its styles move to the <table>.
+  function centredTableOutput(editor) {
+    editor.conversion.for('downcast').add(function(dispatcher) {
+      dispatcher.on('attribute:tableAlignment:table', function(event, data, conversionApi) {
+        const figure = conversionApi.mapper.toViewElement(data.item);
+        const viewTable = findViewElement(figure, 'table');
+        if (!figure || !viewTable) return;
+        const writer = conversionApi.writer;
+        if (data.attributeNewValue === 'center') {
+          writer.removeStyle('float', figure);
+          writer.setStyle({'margin-left': 'auto', 'margin-right': 'auto'}, figure);
+          writer.setAttribute('align', 'center', viewTable);
+        }
+        else if (data.attributeOldValue === 'center') {
+          writer.removeStyle(['margin-left', 'margin-right'], figure);
+          writer.removeAttribute('align', viewTable);
+        }
+      }, {priority: 'low'});
+    });
+  }
+
   // Save page breaks without the page-break class. CiviCRM's print.css starts
   // a new page before div.page-break, and the break's inline style starts
   // another after it, so every break printed a blank page. The editor reads
@@ -1048,7 +1073,8 @@
           // Front-end editors don't hold email templates, and upstream's
           // front-end preset doesn't rewrite their layout either.
           ...(CRM.config.isFrontend ? [] : [LegacyEmailLayout]),
-          HtmlCommentOutput
+          HtmlCommentOutput,
+          centredTableOutput
         ],
         image: {
           // Resize in pixels, which email clients understand.
@@ -1078,7 +1104,17 @@
             'tableCellProperties',
             'tableProperties',
             'toggleTableCaption'
-          ]
+          ],
+          // CKEditor treats Centre as the default alignment and saves nothing
+          // for it, so a table set to Centre was saved at the left. A table
+          // with no alignment is at the left in an email or a PDF. This
+          // build's options are left, centre and right, and left and right
+          // float the table, so no option can be the default: 'none' matches
+          // no option, so Centre is saved, and a table with no alignment
+          // shows no option as chosen. See centredTableOutput().
+          tableProperties: {
+            defaultProperties: {alignment: 'none'}
+          }
         },
         // The "Styles" dropdown, the closest equivalent to ckeditor4's Styles
         // menu. These are deliberately generic - a site that wants its own
