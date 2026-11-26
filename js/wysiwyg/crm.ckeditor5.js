@@ -387,8 +387,12 @@
       if (!element.style.backgroundColor) element.style.backgroundColor = element.getAttribute('bgcolor');
     });
     root.querySelectorAll('td, th').forEach(function(cell) {
-      if (cell.children.length === 1 && cell.firstElementChild.tagName === 'TABLE') {
-        const innerTable = cell.firstElementChild;
+      // Align every table directly in the cell, not only a table that is
+      // alone there: a content table is often followed by a footer table. A
+      // table with an align attribute of its own keeps that alignment.
+      const innerTables = Array.from(cell.children).filter(child => child.tagName === 'TABLE'
+        && !Array.from(child.classList).some(name => name.startsWith('civi-email-align-')));
+      if (innerTables.length) {
         let alignSource = cell;
         let cellAlign = '';
         while (alignSource && !cellAlign) {
@@ -397,16 +401,18 @@
             ? alignSource.parentElement.closest('td, th')
             : null;
         }
-        if (cellAlign === 'center' && !innerTable.classList.contains('civi-email-align-center')) {
-          innerTable.classList.add('civi-email-align-center');
-          if (!innerTable.style.marginLeft) innerTable.style.marginLeft = 'auto';
-          if (!innerTable.style.marginRight) innerTable.style.marginRight = 'auto';
-        }
-        else if ((cellAlign === 'left' || cellAlign === 'right') && !innerTable.classList.contains(`civi-email-align-${cellAlign}`)) {
-          innerTable.classList.add(`civi-email-align-${cellAlign}`);
-          if (!innerTable.style.marginLeft) innerTable.style.marginLeft = cellAlign === 'right' ? 'auto' : '0';
-          if (!innerTable.style.marginRight) innerTable.style.marginRight = cellAlign === 'left' ? 'auto' : '0';
-        }
+        innerTables.forEach(function(innerTable) {
+          if (cellAlign === 'center') {
+            innerTable.classList.add('civi-email-align-center');
+            if (!innerTable.style.marginLeft) innerTable.style.marginLeft = 'auto';
+            if (!innerTable.style.marginRight) innerTable.style.marginRight = 'auto';
+          }
+          else if (cellAlign === 'left' || cellAlign === 'right') {
+            innerTable.classList.add(`civi-email-align-${cellAlign}`);
+            if (!innerTable.style.marginLeft) innerTable.style.marginLeft = cellAlign === 'right' ? 'auto' : '0';
+            if (!innerTable.style.marginRight) innerTable.style.marginRight = cellAlign === 'left' ? 'auto' : '0';
+          }
+        });
       }
       if (cell.children.length !== 1) return;
       let child = cell.firstElementChild;
