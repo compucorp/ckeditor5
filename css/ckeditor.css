@@ -122,6 +122,21 @@ html body .ck.ck-editor__main * {
   color: black;
 }
 
+/* Show links as links. The rule above made them black too, so they could
+ * only be told apart on hover. Only a with an href is a link: an a without
+ * one, such as an old <a name="top"> around a heading, stays plain text.
+ * Text inside a link inherits the link's colour, so a button link with its
+ * own text colour keeps it, and a colour set on the text in the editor, an
+ * inline style, still wins. */
+html body .ck.ck-editor__main a[href] {
+  color: #0071bd;
+  text-decoration: underline;
+}
+
+html body .ck.ck-editor__main a[href] * {
+  color: inherit;
+}
+
 .ck-content .crm-lead {
   font-size: 1.15em;
   line-height: 1.5;
